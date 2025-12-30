@@ -24,7 +24,13 @@ export default function Home() {
   useEffect(() => {
     if (!session?.user) return;
 
-    const channel = supabase.channel("online-users");
+    const channel = supabase.channel("online-users", {
+      config: {
+        presence: {
+          key: session.user.id,
+        },
+      },
+    });
     
     const trackPresence = async () => {
       await channel.subscribe(async (status) => {
@@ -49,7 +55,7 @@ export default function Home() {
         });
         await supabase.from("profiles").update({ updated_at: new Date().toISOString() }).eq("id", session.user.id);
       }
-    }, 30000); // 30s heartbeat
+    }, 10000); // 10s heartbeat for better responsiveness
 
     const handleVisibilityChange = () => {
       if (document.visibilityState === "visible") {
@@ -60,11 +66,17 @@ export default function Home() {
       }
     };
 
+    const handleBeforeUnload = () => {
+      channel.unsubscribe();
+    };
+
     document.addEventListener("visibilitychange", handleVisibilityChange);
+    window.addEventListener("beforeunload", handleBeforeUnload);
 
     return () => {
       clearInterval(heartbeat);
       document.removeEventListener("visibilitychange", handleVisibilityChange);
+      window.removeEventListener("beforeunload", handleBeforeUnload);
       channel.unsubscribe();
     };
   }, [session]);

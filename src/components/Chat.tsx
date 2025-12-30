@@ -256,19 +256,6 @@ export function Chat({ session, privateKey, initialContact, isPartnerOnline, onB
         }
       });
 
-    // Handle isTyping updates
-    const updateTypingStatus = async () => {
-      if (channel) {
-        await channel.track({
-          online_at: new Date().toISOString(),
-          current_chat_id: initialContact.id,
-          is_typing: isTyping
-        });
-      }
-    };
-    
-    updateTypingStatus();
-
     return () => {
       channel.unsubscribe();
     };
@@ -595,11 +582,7 @@ export function Chat({ session, privateKey, initialContact, isPartnerOnline, onB
   if (!initialContact) return null;
 
   return (
-    <div 
-      className="flex flex-col h-full bg-[#030303] relative overflow-hidden select-none" 
-      onContextMenu={(e) => e.preventDefault()}
-      style={{ WebkitTouchCallout: 'none', WebkitUserSelect: 'none', userSelect: 'none' } as any}
-    >
+    <div className="flex flex-col h-full bg-[#030303] relative overflow-hidden select-none" onContextMenu={(e) => e.preventDefault()}>
       {/* Header */}
       <header className="h-20 border-b border-white/5 bg-black/40 backdrop-blur-3xl flex items-center justify-between px-6 z-20 shrink-0">
           <div className="flex items-center gap-4">
@@ -782,24 +765,38 @@ export function Chat({ session, privateKey, initialContact, isPartnerOnline, onB
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Typing Indicator */}
-      <AnimatePresence>
-        {partnerPresence.isTyping && (
-          <motion.div 
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 10 }}
-            className="absolute bottom-28 left-6 flex items-center gap-2 z-20 bg-black/40 backdrop-blur-md px-3 py-1.5 rounded-full border border-blue-500/20"
-          >
-            <div className="flex gap-1">
-              <span className="w-1.5 h-1.5 bg-blue-500 rounded-full animate-bounce [animation-delay:-0.3s]"></span>
-              <span className="w-1.5 h-1.5 bg-blue-500 rounded-full animate-bounce [animation-delay:-0.15s]"></span>
-              <span className="w-1.5 h-1.5 bg-blue-500 rounded-full animate-bounce"></span>
-            </div>
-            <span className="text-[10px] font-black uppercase tracking-widest text-blue-400 italic">Typing...</span>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {/* Typing/In-Chat Indicator */}
+      <div className="h-8 relative z-20 overflow-hidden">
+        <AnimatePresence>
+          {(partnerPresence.isTyping || partnerPresence.isInChat) && (
+            <motion.div 
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 10 }}
+              className="px-8 py-1 flex items-center gap-4"
+            >
+              <div className="flex items-center gap-2">
+                {partnerPresence.isInChat && (
+                  <div className="flex items-center gap-2">
+                    <div className="w-2 h-2 rounded-full bg-blue-500 shadow-[0_0_10px_rgba(59,130,246,0.8)] animate-pulse" />
+                    <span className="text-[8px] font-black uppercase tracking-widest text-blue-400">In Chat</span>
+                  </div>
+                )}
+                {partnerPresence.isTyping && (
+                  <div className={`flex items-center gap-2 ${partnerPresence.isInChat ? 'ml-2 border-l border-white/10 pl-3' : ''}`}>
+                    <span className="text-[8px] font-black uppercase tracking-widest text-indigo-400">Typing</span>
+                    <div className="flex gap-0.5">
+                      <motion.div animate={{ opacity: [0.2, 1, 0.2] }} transition={{ duration: 1, repeat: Infinity }} className="w-1 h-1 rounded-full bg-indigo-500" />
+                      <motion.div animate={{ opacity: [0.2, 1, 0.2] }} transition={{ duration: 1, repeat: Infinity, delay: 0.2 }} className="w-1 h-1 rounded-full bg-indigo-500" />
+                      <motion.div animate={{ opacity: [0.2, 1, 0.2] }} transition={{ duration: 1, repeat: Infinity, delay: 0.4 }} className="w-1 h-1 rounded-full bg-indigo-500" />
+                    </div>
+                  </div>
+                )}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
 
       {/* Input Area */}
       <footer className="p-6 bg-black/40 backdrop-blur-3xl border-t border-white/5 relative z-30 shrink-0">

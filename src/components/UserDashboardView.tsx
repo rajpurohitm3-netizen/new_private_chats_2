@@ -307,19 +307,13 @@ export function UserDashboardView({ session, privateKey }: UserDashboardViewProp
                   <h2 className="text-xl font-black italic tracking-tighter uppercase font-accent">Chatify <span className="text-indigo-500">Core</span></h2>
                   <Button variant="ghost" size="icon" onClick={() => setMobileMenuOpen(false)} className="text-white/20 hover:text-white bg-white/5 rounded-xl"><X className="w-5 h-5" /></Button>
                 </div>
-                <div className="flex items-center gap-4 mb-12 p-4 bg-white/[0.02] border border-white/5 rounded-[2rem]">
-                  <div className="relative">
-                    <AvatarDisplay profile={myProfile} className="h-12 w-12" />
-                    <div className="absolute bottom-0 right-0 w-3 h-3 bg-blue-500 rounded-full border-2 border-[#050505] animate-pulse" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="font-semibold text-sm uppercase tracking-tight truncate leading-tight font-accent">{myProfile.username}</p>
-                    <div className="flex items-center gap-1.5 mt-0.5">
-                      <div className="w-1 h-1 bg-blue-500 rounded-full" />
-                      <p className="text-[9px] font-medium text-blue-400/80 uppercase tracking-wider font-sans">Online</p>
-                    </div>
-                  </div>
+              <div className="flex items-center gap-4 mb-12 p-4 bg-white/[0.02] border border-white/5 rounded-[2rem]">
+                <AvatarDisplay profile={myProfile} className="h-12 w-12" />
+                <div className="flex-1 min-w-0">
+                  <p className="font-semibold text-sm uppercase tracking-tight truncate leading-tight font-accent">{myProfile.username}</p>
+                  <p className="text-[9px] font-medium text-emerald-500/80 uppercase tracking-wider mt-0.5 font-sans">Online</p>
                 </div>
+              </div>
                 <nav className="flex-1 space-y-1">
                   {navItems.map((item) => {
                     const isActive = activeView === item.id;
@@ -365,24 +359,13 @@ export function UserDashboardView({ session, privateKey }: UserDashboardViewProp
       </AnimatePresence>
 
       <motion.aside initial={{ x: -100, opacity: 0 }} animate={{ x: 0, opacity: 1 }} className={`${sidebarOpen ? 'w-80' : 'w-24'} border-r border-white/5 bg-[#050505]/80 backdrop-blur-3xl flex flex-col transition-all duration-500 hidden lg:flex relative z-40 h-full overflow-hidden`}>
-          <div className={`p-6 border-b border-white/5 shrink-0 flex items-center ${sidebarOpen ? 'justify-between' : 'justify-center'}`}>
-            <div className="flex items-center gap-5">
-              <div className="relative">
-                <AvatarDisplay profile={myProfile} className="h-12 w-12" />
-                <div className="absolute bottom-0 right-0 w-3 h-3 bg-blue-500 rounded-full border-2 border-[#050505] animate-pulse" />
-              </div>
-              {sidebarOpen && (
-                <div className="flex-1 min-w-0">
-                  <p className="font-semibold text-sm uppercase tracking-tight truncate font-accent leading-tight">{myProfile.username}</p>
-                  <div className="flex items-center gap-1.5 mt-0.5">
-                    <div className="w-1 h-1 bg-blue-500 rounded-full" />
-                    <p className="text-[9px] font-medium text-blue-400/80 uppercase tracking-wider font-sans">Online</p>
-                  </div>
-                </div>
-              )}
-            </div>
-            {sidebarOpen && <Button variant="ghost" size="icon" onClick={() => setSidebarOpen(false)}><Menu className="w-5 h-5" /></Button>}
+        <div className={`p-6 border-b border-white/5 shrink-0 flex items-center ${sidebarOpen ? 'justify-between' : 'justify-center'}`}>
+          <div className="flex items-center gap-5">
+            <AvatarDisplay profile={myProfile} className="h-12 w-12" />
+            {sidebarOpen && <div className="flex-1 min-w-0"><p className="font-semibold text-sm uppercase tracking-tight truncate font-accent">{myProfile.username}</p></div>}
           </div>
+          {sidebarOpen && <Button variant="ghost" size="icon" onClick={() => setSidebarOpen(false)}><Menu className="w-5 h-5" /></Button>}
+        </div>
         {!sidebarOpen && <div className="p-4 flex justify-center border-b border-white/5"><Button variant="ghost" size="icon" onClick={() => setSidebarOpen(true)}><Menu className="w-5 h-5" /></Button></div>}
           <nav className="flex-1 p-6 space-y-3">
             {navItems.map((item) => {
