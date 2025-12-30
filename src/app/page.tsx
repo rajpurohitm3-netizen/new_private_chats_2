@@ -32,8 +32,6 @@ export default function Home() {
           await channel.track({
             user_id: session.user.id,
             online_at: new Date().toISOString(),
-            status: "online",
-            last_active: new Date().toISOString()
           });
           // Update profile heartbeat
           await supabase.from("profiles").update({ updated_at: new Date().toISOString() }).eq("id", session.user.id);
@@ -44,13 +42,12 @@ export default function Home() {
     trackPresence();
 
     const handleVisibilityChange = () => {
-      const isOnline = document.visibilityState === "visible";
-      channel.track({
-        user_id: session.user.id,
-        online_at: new Date().toISOString(),
-        status: isOnline ? "online" : "away",
-        last_active: new Date().toISOString()
-      });
+      if (document.visibilityState === "visible") {
+        channel.track({
+          user_id: session.user.id,
+          online_at: new Date().toISOString(),
+        });
+      }
     };
 
     document.addEventListener("visibilitychange", handleVisibilityChange);

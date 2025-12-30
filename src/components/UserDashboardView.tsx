@@ -37,7 +37,6 @@ export function UserDashboardView({ session, privateKey }: UserDashboardViewProp
 
   const [myProfile, setMyProfile] = useState<any>(null);
   const [profiles, setProfiles] = useState<any[]>([]);
-  const [onlineUsers, setOnlineUsers] = useState<Set<string>>(new Set());
   const [unreadCount, setUnreadCount] = useState(0);
   const [recentChats, setRecentChats] = useState<any[]>([]);
   const [showSettings, setShowSettings] = useState(false);
@@ -46,238 +45,179 @@ export function UserDashboardView({ session, privateKey }: UserDashboardViewProp
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [notifications, setNotifications] = useState<any[]>([]);
   const [showNotifications, setShowNotifications] = useState(false);
-    const [activeCall, setActiveCall] = useState<any>(null);
-    const [incomingCall, setIncomingCall] = useState<any>(null);
-    const [broadcasts, setBroadcasts] = useState<any[]>([]);
-    const [systemConfig, setSystemConfig] = useState<any>({});
-    const [unviewedSnapshots, setUnviewedSnapshots] = useState<any[]>([]);
-    const [chatSearchQuery, setChatSearchQuery] = useState("");
-    const notificationSound = useRef<HTMLAudioElement | null>(null);
+  const [activeCall, setActiveCall] = useState<any>(null);
+  const [incomingCall, setIncomingCall] = useState<any>(null);
+  const [broadcasts, setBroadcasts] = useState<any[]>([]);
+  const [systemConfig, setSystemConfig] = useState<any>({});
+  const [unviewedSnapshots, setUnviewedSnapshots] = useState<any[]>([]);
+  const [chatSearchQuery, setChatSearchQuery] = useState("");
+  const notificationSound = useRef<HTMLAudioElement | null>(null);
 
-    useEffect(() => {
-      notificationSound.current = new Audio("https://assets.mixkit.co/active_storage/sfx/2358/2358-preview.mp3");
-    }, []);
+  useEffect(() => {
+    notificationSound.current = new Audio("https://assets.mixkit.co/active_storage/sfx/2358/2358-preview.mp3");
+  }, []);
 
-      useEffect(() => {
-        // Register Service Worker for mobile/background notifications
-        if ('serviceWorker' in navigator) {
-          navigator.serviceWorker.register('/sw.js').then((registration) => {
-            console.log('Service Worker registered with scope:', registration.scope);
-          }).catch((error) => {
-            console.error('Service Worker registration failed:', error);
-          });
-        }
-
-        fetchProfile();
-        fetchProfiles();
-        fetchRecentChats();
-        fetchBroadcasts();
-        fetchSystemConfig();
-        fetchUnviewedSnapshots();
-        fetchUnreadCount();
-        const cleanup = setupRealtimeSubscriptions();
-
-          const handleVisibilityChange = () => {
-            if (document.visibilityState === 'visible') {
-              updateOnlineStatus(true);
-            } else {
-              // Quick update for offline status
-              setTimeout(() => {
-                if (document.visibilityState !== 'visible') {
-                  updateOnlineStatus(false);
-                }
-              }, 1000); 
-            }
-          };
-
-        const handleFocus = () => updateOnlineStatus(true);
-        // Removed aggressive blur tracking as it causes "offline" when user is still looking
-        // const handleBlur = () => updateOnlineStatus(false);
-
-        document.addEventListener('visibilitychange', handleVisibilityChange);
-        window.addEventListener('focus', handleFocus);
-        window.addEventListener('beforeunload', () => updateOnlineStatus(false));
-
-        // Initial status
-        if (document.visibilityState === 'visible') {
-          updateOnlineStatus(true);
-        }
-
-        const interval = setInterval(() => {
-          if (document.visibilityState === 'visible') {
-            updateOnlineStatus(true);
-          }
-          fetchUnviewedSnapshots();
-          supabase.rpc('purge_viewed_content');
-        }, 10000); // Reduced to 10s for more "immediate" status
-
-        if ("Notification" in window && Notification.permission === "default") {
-          Notification.requestPermission();
-        }
-
-        return () => {
-          clearInterval(interval);
-          document.removeEventListener('visibilitychange', handleVisibilityChange);
-          window.removeEventListener('focus', handleFocus);
-          updateOnlineStatus(false);
-          cleanup();
-        };
-      }, [session.user.id]);
-
-      async function updateOnlineStatus(online: boolean = true) {
-        // No-op here, handled by Home component
-      }
-
-
-    async function fetchProfile() {
-      const { data } = await supabase.from("profiles").select("*").eq("id", session.user.id).single();
-      if (data) setMyProfile(data);
+  useEffect(() => {
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/sw.js').then((registration) => {
+        console.log('Service Worker registered with scope:', registration.scope);
+      }).catch((error) => {
+        console.error('Service Worker registration failed:', error);
+      });
     }
 
-    async function fetchProfiles() {
-      const { data } = await supabase.from("profiles").select("*").neq("id", session.user.id);
-      if (data) setProfiles(data);
+    fetchProfile();
+    fetchProfiles();
+    fetchRecentChats();
+    fetchBroadcasts();
+    fetchSystemConfig();
+    fetchUnviewedSnapshots();
+    fetchUnreadCount();
+    const cleanup = setupRealtimeSubscriptions();
+
+    const interval = setInterval(() => {
+      fetchUnviewedSnapshots();
+      supabase.rpc('purge_viewed_content');
+    }, 15000);
+
+    if ("Notification" in window && Notification.permission === "default") {
+      Notification.requestPermission();
     }
 
-    async function fetchRecentChats() {
-      const { data: messages } = await supabase
-        .from("messages")
-        .select("sender_id, receiver_id, created_at")
-        .or(`sender_id.eq.${session.user.id},receiver_id.eq.${session.user.id}`)
-        .order("created_at", { ascending: false });
+    return () => {
+      clearInterval(interval);
+      cleanup();
+    };
+  }, [session.user.id]);
 
-      if (messages) {
-        const contactIds = Array.from(new Set(messages.flatMap(m => [m.sender_id, m.receiver_id])))
-          .filter(id => id !== session.user.id);
-        
-        if (contactIds.length > 0) {
-          const { data: profilesData } = await supabase.from("profiles").select("*").in("id", contactIds);
-          if (profilesData) {
-            const sorted = contactIds.map(id => profilesData.find(p => p.id === id)).filter(Boolean);
-            setRecentChats(sorted);
-          }
+  async function fetchProfile() {
+    const { data } = await supabase.from("profiles").select("*").eq("id", session.user.id).single();
+    if (data) setMyProfile(data);
+  }
+
+  async function fetchProfiles() {
+    const { data } = await supabase.from("profiles").select("*").neq("id", session.user.id);
+    if (data) setProfiles(data || []);
+  }
+
+  async function fetchRecentChats() {
+    const { data: messages } = await supabase
+      .from("messages")
+      .select("sender_id, receiver_id, created_at")
+      .or(`sender_id.eq.${session.user.id},receiver_id.eq.${session.user.id}`)
+      .order("created_at", { ascending: false });
+
+    if (messages) {
+      const contactIds = Array.from(new Set(messages.flatMap(m => [m.sender_id, m.receiver_id])))
+        .filter(id => id !== session.user.id);
+      
+      if (contactIds.length > 0) {
+        const { data: profilesData } = await supabase.from("profiles").select("*").in("id", contactIds);
+        if (profilesData) {
+          const sorted = contactIds.map(id => profilesData.find(p => p.id === id)).filter(Boolean);
+          setRecentChats(sorted);
         }
       }
     }
+  }
 
-    async function fetchBroadcasts() {
-      const { data } = await supabase.from("broadcasts").select("*").order("created_at", { ascending: false }).limit(1);
-      if (data) setBroadcasts(data);
+  async function fetchBroadcasts() {
+    const { data } = await supabase.from("broadcasts").select("*").order("created_at", { ascending: false }).limit(1);
+    if (data) setBroadcasts(data);
+  }
+
+  async function fetchSystemConfig() {
+    const { data } = await supabase.from("system_config").select("*").single();
+    if (data) setSystemConfig(data);
+  }
+
+  async function fetchUnviewedSnapshots() {
+    const { data } = await supabase.from("stories").select("*").order("created_at", { ascending: false });
+    if (data) setUnviewedSnapshots(data || []);
+  }
+
+  async function fetchUnreadCount() {
+    const { count } = await supabase
+      .from("messages")
+      .select("*", { count: 'exact', head: true })
+      .eq("receiver_id", session.user.id)
+      .eq("is_viewed", false);
+    setUnreadCount(count || 0);
+  }
+
+  async function showNotification(title: string, options?: NotificationOptions) {
+    if (notificationSound.current) {
+      notificationSound.current.play().catch(e => console.error("Sound play failed:", e));
     }
 
-    async function fetchSystemConfig() {
-      const { data } = await supabase.from("system_config").select("*").single();
-      if (data) setSystemConfig(data);
-    }
-
-    async function fetchUnviewedSnapshots() {
-      const { data } = await supabase.from("stories").select("*").order("created_at", { ascending: false });
-      if (data) setUnviewedSnapshots(data);
-    }
-
-    async function fetchUnreadCount() {
-      const { count } = await supabase
-        .from("messages")
-        .select("*", { count: 'exact', head: true })
-        .eq("receiver_id", session.user.id)
-        .eq("is_viewed", false);
-      setUnreadCount(count || 0);
-    }
-
-    async function showNotification(title: string, options?: NotificationOptions) {
-      // Play sound
-      if (notificationSound.current) {
-        notificationSound.current.play().catch(e => console.error("Sound play failed:", e));
-      }
-
-      // Show browser notification via Service Worker if available for better mobile/background support
-      if ('serviceWorker' in navigator && 'Notification' in window && Notification.permission === "granted") {
-        const registration = await navigator.serviceWorker.ready;
-        registration.showNotification(title, {
+    if ('serviceWorker' in navigator && 'Notification' in window && Notification.permission === "granted") {
+      const registration = await navigator.serviceWorker.ready;
+      registration.showNotification(title, {
+        icon: "/icon.png",
+        badge: "/icon.png",
+        vibrate: [100, 50, 100],
+        ...options
+      } as any);
+    } else if ("Notification" in window && Notification.permission === "granted") {
+      try {
+        const n = new Notification(title, {
           icon: "/icon.png",
           badge: "/icon.png",
-          vibrate: [100, 50, 100],
           ...options
-        } as any);
-      } else if ("Notification" in window && Notification.permission === "granted") {
-        try {
-          const n = new Notification(title, {
-            icon: "/icon.png",
-            badge: "/icon.png",
-            ...options
-          });
-          n.onclick = () => {
-            window.focus();
-            n.close();
-          };
-        } catch (e) {
-          console.error("Browser notification failed:", e);
-        }
+        });
+        n.onclick = () => {
+          window.focus();
+          n.close();
+        };
+      } catch (e) {
+        console.error("Browser notification failed:", e);
       }
     }
+  }
 
-    const presenceChannelRef = useRef<any>(null);
+  function setupRealtimeSubscriptions() {
+    const broadcastsChannel = supabase.channel("global-broadcasts").on("postgres_changes", { event: "INSERT", schema: "public", table: "broadcasts" }, (payload) => {
+      setBroadcasts([payload.new]);
+      toast.info("Global Broadcast Received", { description: payload.new.content, icon: <Radio className="w-4 h-4 text-indigo-500" /> });
+      showNotification("Global Broadcast", { body: payload.new.content });
+    }).subscribe();
 
-    function setupRealtimeSubscriptions() {
-      const broadcastsChannel = supabase.channel("global-broadcasts").on("postgres_changes", { event: "INSERT", schema: "public", table: "broadcasts" }, (payload) => {
-        setBroadcasts([payload.new]);
-        toast.info("Global Broadcast Received", { description: payload.new.content, icon: <Radio className="w-4 h-4 text-indigo-500" /> });
-        showNotification("Global Broadcast", { body: payload.new.content });
-      }).subscribe();
+    const messagesChannel = supabase.channel("dashboard-messages").on("postgres_changes", { event: "INSERT", schema: "public", table: "messages", filter: `receiver_id=eq.${session.user.id}` }, (payload) => {
+      fetchRecentChats();
+      fetchUnreadCount();
+      toast.info("New message received");
+      showNotification("New Message", { body: "You have received a new intelligence packet." });
+    }).subscribe();
 
-      const messagesChannel = supabase.channel("dashboard-messages").on("postgres_changes", { event: "INSERT", schema: "public", table: "messages", filter: `receiver_id=eq.${session.user.id}` }, (payload) => {
-        fetchRecentChats();
-        fetchUnreadCount();
-        toast.info("New message received");
-        showNotification("New Message", { body: "You have received a new intelligence packet." });
-      }).subscribe();
-
-      const callsChannel = supabase.channel("incoming-calls").on("postgres_changes", { event: "INSERT", schema: "public", table: "calls", filter: `receiver_id=eq.${session.user.id}` }, async (payload) => {
-        const data = payload.new;
-        if (data.type === "offer" && !activeCall && !incomingCall) {
-          const { data: caller } = await supabase.from("profiles").select("*").eq("id", data.caller_id).single();
-          if (caller) {
-            setIncomingCall({ ...data, caller });
-            toast.info(`Incoming ${data.call_mode} call from ${caller.username}`, { duration: 10000 });
-            showNotification(`Incoming ${data.call_mode} call`, { body: `Call from ${caller.username}` });
-          }
+    const callsChannel = supabase.channel("incoming-calls").on("postgres_changes", { event: "INSERT", schema: "public", table: "calls", filter: `receiver_id=eq.${session.user.id}` }, async (payload) => {
+      const data = payload.new;
+      if (data.type === "offer" && !activeCall && !incomingCall) {
+        const { data: caller } = await supabase.from("profiles").select("*").eq("id", data.caller_id).single();
+        if (caller) {
+          setIncomingCall({ ...data, caller });
+          toast.info(`Incoming ${data.call_mode} call from ${caller.username}`, { duration: 10000 });
+          showNotification(`Incoming ${data.call_mode} call`, { body: `Call from ${caller.username}` });
         }
-      }).subscribe();
+      }
+    }).subscribe();
 
-      const storiesChannel = supabase.channel("new-stories").on("postgres_changes", { event: "INSERT", schema: "public", table: "stories" }, async (payload) => {
-        if (payload.new.user_id !== session.user.id) {
-          const { data: creator } = await supabase.from("profiles").select("username").eq("id", payload.new.user_id).single();
-          if (creator) {
-            toast.info(`New story from ${creator.username}`, { icon: <Camera className="w-4 h-4 text-pink-500" /> });
-            showNotification("New Story", { body: `${creator.username} shared a new temporal snapshot.` });
-          }
+    const storiesChannel = supabase.channel("new-stories").on("postgres_changes", { event: "INSERT", schema: "public", table: "stories" }, async (payload) => {
+      if (payload.new.user_id !== session.user.id) {
+        const { data: creator } = await supabase.from("profiles").select("username").eq("id", payload.new.user_id).single();
+        if (creator) {
+          toast.info(`New story from ${creator.username}`, { icon: <Camera className="w-4 h-4 text-pink-500" /> });
+          showNotification("New Story", { body: `${creator.username} shared a new temporal snapshot.` });
         }
-      }).subscribe();
+      }
+    }).subscribe();
 
-      const presenceChannel = supabase.channel("online-users").on("presence", { event: "sync" }, () => {
-        const state = presenceChannel.presenceState();
-        const online = new Set<string>();
-        Object.values(state).forEach((users: any) => { users.forEach((u: any) => online.add(u.user_id)); });
-        setOnlineUsers(online);
-      }).subscribe(async (status) => {
-        if (status === 'SUBSCRIBED') {
-          await presenceChannel.track({
-            user_id: session.user.id,
-            online_at: new Date().toISOString(),
-            status: "online"
-          });
-        }
-      });
-
-      presenceChannelRef.current = presenceChannel;
-
-      return () => {
-        supabase.removeChannel(broadcastsChannel);
-        supabase.removeChannel(messagesChannel);
-        supabase.removeChannel(callsChannel);
-        supabase.removeChannel(presenceChannel);
-      };
-    }
+    return () => {
+      supabase.removeChannel(broadcastsChannel);
+      supabase.removeChannel(messagesChannel);
+      supabase.removeChannel(callsChannel);
+      supabase.removeChannel(storiesChannel);
+    };
+  }
 
   const handleNavClick = (view: ActiveView) => {
     setActiveView(view);
@@ -319,7 +259,6 @@ export function UserDashboardView({ session, privateKey }: UserDashboardViewProp
                 <AvatarDisplay profile={myProfile} className="h-12 w-12" />
                 <div className="flex-1 min-w-0">
                   <p className="font-semibold text-sm uppercase tracking-tight truncate leading-tight font-accent">{myProfile.username}</p>
-                  <p className="text-[9px] font-medium text-emerald-500/80 uppercase tracking-wider mt-0.5 font-sans">Online</p>
                 </div>
               </div>
                 <nav className="flex-1 space-y-1">
@@ -356,7 +295,6 @@ export function UserDashboardView({ session, privateKey }: UserDashboardViewProp
                           <item.icon className={`w-4 h-4 transition-transform relative z-10 ${isActive ? 'text-indigo-400 scale-110' : 'text-white/20 group-hover:text-white/40'}`} />
                           <span className="text-[10px] font-bold tracking-widest uppercase leading-none relative z-10 font-accent">{item.label}</span>
                         </motion.button>
-
                     );
                   })}
                 </nav>
@@ -403,7 +341,6 @@ export function UserDashboardView({ session, privateKey }: UserDashboardViewProp
                     <item.icon className={`w-5 h-5 transition-transform relative z-10 ${isActive ? 'text-indigo-400 scale-110' : 'text-white/20 group-hover:text-white/40'}`} />
                     {sidebarOpen && <span className="text-[10px] font-bold tracking-widest uppercase relative z-10 font-accent">{item.label}</span>}
                   </motion.button>
-
                 );
               })}
             </nav>
@@ -431,7 +368,7 @@ export function UserDashboardView({ session, privateKey }: UserDashboardViewProp
                   <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
                     {[
                       { label: "Signals", value: unreadCount, icon: MessageCircle, color: "from-indigo-600 to-indigo-700" },
-                      { label: "Nodes", value: onlineUsers.size, icon: Users, color: "from-emerald-600 to-emerald-700" },
+                      { label: "Nodes", value: profiles.length, icon: Users, color: "from-emerald-600 to-emerald-700" },
                       { label: "Entities", value: profiles.length, icon: User, color: "from-purple-600 to-purple-700" },
                       { label: "Security", value: "E2EE", icon: Shield, color: "from-orange-600 to-orange-700" }
                     ].map((stat, i) => (
@@ -514,11 +451,6 @@ export function UserDashboardView({ session, privateKey }: UserDashboardViewProp
                                       <AvatarDisplay profile={p} className="h-14 w-14 group-hover:scale-110 transition-transform" />
                                       <div className="flex-1 text-left">
                                         <p className="font-black text-lg uppercase italic font-accent">{p.username}</p>
-                                        <div className="flex items-center gap-2">
-                                            <div className={`w-1.5 h-1.5 rounded-full ${onlineUsers.has(p.id) ? 'bg-emerald-500 animate-pulse' : 'bg-white/10'}`} />
-                                            <p className="text-[10px] font-bold uppercase tracking-widest text-white/30">{onlineUsers.has(p.id) ? 'Online' : 'Offline'}</p>
-
-                                        </div>
                                       </div>
                                       <ChevronRight className="w-5 h-5 text-white/10 group-hover:text-indigo-400 group-hover:translate-x-1 transition-all" />
                                     </button>
@@ -531,7 +463,6 @@ export function UserDashboardView({ session, privateKey }: UserDashboardViewProp
                               session={session} 
                               privateKey={privateKey} 
                               initialContact={selectedContact} 
-                              isPartnerOnline={onlineUsers.has(selectedContact.id)}
                               onBack={() => setSelectedContact(null)}
                               onInitiateCall={(c, m) => setActiveCall({ contact: c, mode: m, isInitiator: true })} 
                             />
@@ -575,69 +506,46 @@ export function UserDashboardView({ session, privateKey }: UserDashboardViewProp
                 <div className="bg-[#0a0a0a] border border-white/10 rounded-[3rem] p-10 max-w-sm w-full text-center space-y-8">
                   <AvatarDisplay profile={incomingCall.caller} className="h-32 w-32 mx-auto" />
                   <h3 className="text-4xl font-black italic uppercase font-accent">{incomingCall.caller.username}</h3>
-                    <div className="flex gap-4">
-                      <Button onClick={() => setIncomingCall(null)} className="flex-1 bg-red-600">Decline</Button>
-                      <Button onClick={() => { setActiveCall({ contact: incomingCall.caller, mode: incomingCall.call_mode, isInitiator: false, incomingSignal: JSON.parse(incomingCall.signal_data) }); setIncomingCall(null); }} className="flex-1 bg-emerald-600">Accept</Button>
-                    </div>
+                  <div className="flex gap-4">
+                    <Button onClick={() => setIncomingCall(null)} className="flex-1 bg-red-600">Decline</Button>
+                    <Button onClick={() => { setActiveCall({ contact: incomingCall.caller, mode: incomingCall.call_mode, isInitiator: false, incomingSignal: JSON.parse(incomingCall.signal_data) }); setIncomingCall(null); }} className="flex-1 bg-emerald-600">Accept</Button>
                   </div>
                 </div>
-              )}
-            </AnimatePresence>
+              </div>
+            )}
+          </AnimatePresence>
 
-              <nav className={`lg:hidden fixed bottom-0 left-0 right-0 border-t border-white/5 bg-[#050505]/95 backdrop-blur-3xl px-4 py-4 flex justify-around items-center z-50 rounded-t-[2.5rem] pb-safe transition-all ${ (activeView === 'chat' && selectedContact) ? 'translate-y-full' : ''}`}>
-                {navItems.map(item => {
-                  const isActive = activeView === item.id;
-                  return (
-                        <button 
-                          key={item.id} 
-                          onClick={() => handleNavClick(item.id as ActiveView)} 
-                          className={`flex flex-col items-center gap-1.5 px-3 py-2 relative transition-all group ${isActive ? 'text-white' : 'text-white/30'}`}
-                        >
-                          <item.icon className={`w-5 h-5 transition-all duration-300 ${isActive ? 'text-indigo-400 scale-110 drop-shadow-[0_0_12px_rgba(99,102,241,0.6)]' : 'group-hover:text-white/50'}`} />
-                          
-                            <span className={`text-[8px] font-black uppercase tracking-[0.2em] font-accent leading-none transition-all ${isActive ? 'text-white' : 'text-white/40'}`}>{item.label}</span>
-    
-                            {isActive && (
-                              <motion.div 
-                                layoutId="bottomIndicator" 
-                                className="absolute left-1/2 -translate-x-1/2 h-[3px] bg-indigo-500 rounded-full" 
-                                initial={{ width: 0, opacity: 0 }}
-                                animate={{ width: '16px', opacity: 1 }}
-                                style={{ 
-                                  boxShadow: '0 0 15px rgba(99, 102, 241, 1), 0 0 5px rgba(99, 102, 241, 0.5)',
-                                  bottom: '2px'
-                                }}
-                                transition={{ type: "spring", stiffness: 500, damping: 30 }}
-                              />
-                            )}
-                          </button>
-
-                  );
-                })}
-              </nav>
-
-              {/* Persistent Bottom-Left Status Circle */}
-              <motion.div 
-                initial={{ opacity: 0, scale: 0.5 }}
-                animate={{ opacity: 1, scale: 1 }}
-                className="fixed bottom-6 left-6 z-[60] group pointer-events-auto hidden lg:block"
-              >
-                <div className="relative">
-                  <div className="absolute inset-0 bg-emerald-500/20 blur-xl rounded-full animate-pulse group-hover:bg-emerald-500/40 transition-all duration-700" />
-                  <div className="relative p-1 bg-white/[0.02] border border-white/10 rounded-full backdrop-blur-2xl shadow-2xl">
-                    <AvatarDisplay profile={myProfile} className="h-12 w-12 grayscale-[0.2] group-hover:grayscale-0 transition-all duration-500" />
-                    <div className="absolute bottom-0 right-0 w-4 h-4 bg-[#030303] rounded-full flex items-center justify-center">
-                      <div className="w-2.5 h-2.5 bg-emerald-500 rounded-full animate-pulse shadow-[0_0_10px_rgba(16,185,129,0.8)]" />
-                    </div>
-                  </div>
-                  
-                  <div className="absolute left-16 top-1/2 -translate-y-1/2 bg-black/80 backdrop-blur-xl border border-white/10 px-4 py-2 rounded-2xl opacity-0 group-hover:opacity-100 transition-all duration-300 pointer-events-none whitespace-nowrap translate-x-4 group-hover:translate-x-0">
-                    <p className="text-[10px] font-black uppercase tracking-[0.2em] text-white leading-none">{myProfile.username}</p>
-                    <p className="text-[8px] font-bold text-emerald-500 uppercase tracking-widest mt-1">Uplink Active • Online</p>
-                  </div>
-                </div>
-              </motion.div>
-          </div>
-      </div>
-    );
+            <nav className={`lg:hidden fixed bottom-0 left-0 right-0 border-t border-white/5 bg-[#050505]/95 backdrop-blur-3xl px-4 py-4 flex justify-around items-center z-50 rounded-t-[2.5rem] pb-safe transition-all ${ (activeView === 'chat' && selectedContact) ? 'translate-y-full' : ''}`}>
+              {navItems.map(item => {
+                const isActive = activeView === item.id;
+                return (
+                      <button 
+                        key={item.id} 
+                        onClick={() => handleNavClick(item.id as ActiveView)} 
+                        className={`flex flex-col items-center gap-1.5 px-3 py-2 relative transition-all group ${isActive ? 'text-white' : 'text-white/30'}`}
+                      >
+                        <item.icon className={`w-5 h-5 transition-all duration-300 ${isActive ? 'text-indigo-400 scale-110 drop-shadow-[0_0_12px_rgba(99,102,241,0.6)]' : 'group-hover:text-white/50'}`} />
+                        
+                          <span className={`text-[8px] font-black uppercase tracking-[0.2em] font-accent leading-none transition-all ${isActive ? 'text-white' : 'text-white/40'}`}>{item.label}</span>
+  
+                          {isActive && (
+                            <motion.div 
+                              layoutId="bottomIndicator" 
+                              className="absolute left-1/2 -translate-x-1/2 h-[3px] bg-indigo-500 rounded-full" 
+                              initial={{ width: 0, opacity: 0 }}
+                              animate={{ width: '16px', opacity: 1 }}
+                              style={{ 
+                                boxShadow: '0 0 15px rgba(99, 102, 241, 1), 0 0 5px rgba(99, 102, 241, 0.5)',
+                                bottom: '2px'
+                              }}
+                              transition={{ type: "spring", stiffness: 500, damping: 30 }}
+                            />
+                          )}
+                        </button>
+                );
+              })}
+            </nav>
+        </div>
+    </div>
+  );
 }
