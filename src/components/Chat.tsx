@@ -583,6 +583,15 @@ export function Chat({ session, privateKey, initialContact, isPartnerOnline, onB
 
   return (
     <div className="flex flex-col h-full bg-[#030303] relative overflow-hidden select-none" onContextMenu={(e) => e.preventDefault()}>
+      <style jsx global>{`
+        @media print { body { display: none; } }
+        .no-screenshot {
+          -webkit-touch-callout: none;
+          -webkit-user-select: none;
+          user-select: none;
+        }
+      `}</style>
+
       {/* Header */}
       <header className="h-20 border-b border-white/5 bg-black/40 backdrop-blur-3xl flex items-center justify-between px-6 z-20 shrink-0">
           <div className="flex items-center gap-4">
@@ -765,38 +774,30 @@ export function Chat({ session, privateKey, initialContact, isPartnerOnline, onB
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Typing/In-Chat Indicator */}
-      <div className="h-8 relative z-20 overflow-hidden">
-        <AnimatePresence>
-          {(partnerPresence.isTyping || partnerPresence.isInChat) && (
-            <motion.div 
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: 10 }}
-              className="px-8 py-1 flex items-center gap-4"
-            >
-              <div className="flex items-center gap-2">
-                {partnerPresence.isInChat && (
-                  <div className="flex items-center gap-2">
-                    <div className="w-2 h-2 rounded-full bg-blue-500 shadow-[0_0_10px_rgba(59,130,246,0.8)] animate-pulse" />
-                    <span className="text-[8px] font-black uppercase tracking-widest text-blue-400">In Chat</span>
-                  </div>
-                )}
-                {partnerPresence.isTyping && (
-                  <div className={`flex items-center gap-2 ${partnerPresence.isInChat ? 'ml-2 border-l border-white/10 pl-3' : ''}`}>
-                    <span className="text-[8px] font-black uppercase tracking-widest text-indigo-400">Typing</span>
-                    <div className="flex gap-0.5">
-                      <motion.div animate={{ opacity: [0.2, 1, 0.2] }} transition={{ duration: 1, repeat: Infinity }} className="w-1 h-1 rounded-full bg-indigo-500" />
-                      <motion.div animate={{ opacity: [0.2, 1, 0.2] }} transition={{ duration: 1, repeat: Infinity, delay: 0.2 }} className="w-1 h-1 rounded-full bg-indigo-500" />
-                      <motion.div animate={{ opacity: [0.2, 1, 0.2] }} transition={{ duration: 1, repeat: Infinity, delay: 0.4 }} className="w-1 h-1 rounded-full bg-indigo-500" />
-                    </div>
-                  </div>
-                )}
+      {/* Typing Indicator */}
+      <AnimatePresence>
+        {partnerPresence.isTyping && (
+          <motion.div 
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 10 }}
+            className="px-6 py-2 flex items-center gap-3"
+          >
+            <div className="relative">
+              <AvatarDisplay profile={initialContact} className="h-6 w-6" />
+              <div className="absolute -bottom-0.5 -right-0.5 w-2 h-2 bg-blue-500 rounded-full border border-[#030303] animate-pulse" />
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="text-[10px] font-black italic uppercase tracking-widest text-blue-400">Typing</span>
+              <div className="flex gap-0.5">
+                <motion.div animate={{ opacity: [0, 1, 0] }} transition={{ repeat: Infinity, duration: 1, delay: 0 }} className="w-0.5 h-0.5 bg-blue-400 rounded-full" />
+                <motion.div animate={{ opacity: [0, 1, 0] }} transition={{ repeat: Infinity, duration: 1, delay: 0.2 }} className="w-0.5 h-0.5 bg-blue-400 rounded-full" />
+                <motion.div animate={{ opacity: [0, 1, 0] }} transition={{ repeat: Infinity, duration: 1, delay: 0.4 }} className="w-0.5 h-0.5 bg-blue-400 rounded-full" />
               </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Input Area */}
       <footer className="p-6 bg-black/40 backdrop-blur-3xl border-t border-white/5 relative z-30 shrink-0">

@@ -21,7 +21,7 @@ export default function Home() {
   const [otpVerified, setOtpVerified] = useState(false);
   const [isAppUnlocked, setIsAppUnlocked] = useState(false);
 
-  useEffect(() => {
+    useEffect(() => {
     if (!session?.user) return;
 
     const channel = supabase.channel("online-users", {
@@ -33,50 +33,37 @@ export default function Home() {
     });
     
     const trackPresence = async () => {
-      await channel.subscribe(async (status) => {
-        if (status === "SUBSCRIBED") {
-          await channel.track({
-            user_id: session.user.id,
-            online_at: new Date().toISOString(),
-          });
-          // Update profile heartbeat
-          await supabase.from("profiles").update({ updated_at: new Date().toISOString() }).eq("id", session.user.id);
-        }
+      await channel.track({
+        user_id: session.user.id,
+        online_at: new Date().toISOString(),
       });
+      // Update profile heartbeat
+      await supabase.from("profiles").update({ updated_at: new Date().toISOString() }).eq("id", session.user.id);
     };
 
-    trackPresence();
+    channel.subscribe(async (status) => {
+      if (status === "SUBSCRIBED") {
+        await trackPresence();
+      }
+    });
 
     const heartbeat = setInterval(async () => {
       if (document.visibilityState === "visible") {
-        await channel.track({
-          user_id: session.user.id,
-          online_at: new Date().toISOString(),
-        });
-        await supabase.from("profiles").update({ updated_at: new Date().toISOString() }).eq("id", session.user.id);
+        await trackPresence();
       }
-    }, 10000); // 10s heartbeat for better responsiveness
+    }, 15000);
 
     const handleVisibilityChange = () => {
       if (document.visibilityState === "visible") {
-        channel.track({
-          user_id: session.user.id,
-          online_at: new Date().toISOString(),
-        });
+        trackPresence();
       }
     };
 
-    const handleBeforeUnload = () => {
-      channel.unsubscribe();
-    };
-
     document.addEventListener("visibilitychange", handleVisibilityChange);
-    window.addEventListener("beforeunload", handleBeforeUnload);
 
     return () => {
       clearInterval(heartbeat);
       document.removeEventListener("visibilitychange", handleVisibilityChange);
-      window.removeEventListener("beforeunload", handleBeforeUnload);
       channel.unsubscribe();
     };
   }, [session]);
