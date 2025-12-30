@@ -319,7 +319,6 @@ export function Chat({ session, privateKey, initialContact, isPartnerOnline, onB
     if (error) {
       toast.error("Failed to sync neural link");
     } else {
-      setMessages(data || []);
       
       const unviewed = data?.filter(m => m.receiver_id === session.user.id && !m.is_viewed) || [];
       if (unviewed.length > 0) {
