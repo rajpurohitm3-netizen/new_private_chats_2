@@ -21,18 +21,10 @@ export default function Home() {
   const [otpVerified, setOtpVerified] = useState(false);
   const [isAppUnlocked, setIsAppUnlocked] = useState(false);
 
-  const [onlineNodesCount, setOnlineNodesCount] = useState(0);
-
   useEffect(() => {
     if (!session?.user) return;
 
-    const channel = supabase.channel("online-users", {
-      config: {
-        presence: {
-          key: session.user.id,
-        },
-      },
-    });
+    const channel = supabase.channel("online-users");
     
     const trackPresence = async () => {
       await channel.subscribe(async (status) => {
@@ -49,12 +41,6 @@ export default function Home() {
 
     trackPresence();
 
-    channel.on("presence", { event: "sync" }, () => {
-      const state = channel.presenceState();
-      const count = Object.keys(state).length;
-      setOnlineNodesCount(count);
-    });
-
     const handleVisibilityChange = () => {
       if (document.visibilityState === "visible") {
         channel.track({
@@ -66,16 +52,8 @@ export default function Home() {
 
     document.addEventListener("visibilitychange", handleVisibilityChange);
 
-    // Heartbeat every 15 seconds
-    const heartbeat = setInterval(async () => {
-      if (document.visibilityState === "visible") {
-        await supabase.from("profiles").update({ updated_at: new Date().toISOString() }).eq("id", session.user.id);
-      }
-    }, 15000);
-
     return () => {
       document.removeEventListener("visibilitychange", handleVisibilityChange);
-      clearInterval(heartbeat);
       channel.unsubscribe();
     };
   }, [session]);

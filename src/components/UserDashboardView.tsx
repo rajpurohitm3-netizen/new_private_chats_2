@@ -124,18 +124,9 @@ export function UserDashboardView({ session, privateKey }: UserDashboardViewProp
         };
       }, [session.user.id]);
 
-    const isUserOnline = (profile: any) => {
-      if (onlineUsers.has(profile.id)) return true;
-      if (!profile.updated_at) return false;
-      const lastSeen = new Date(profile.updated_at).getTime();
-      return (Date.now() - lastSeen) < 60000; // 60s fallback
-    };
-
-    async function updateOnlineStatus(online: boolean = true) {
-      if (online && session?.user?.id) {
-        await supabase.from("profiles").update({ updated_at: new Date().toISOString() }).eq("id", session.user.id);
+      async function updateOnlineStatus(online: boolean = true) {
+        // No-op here, handled by Home component
       }
-    }
 
 
     async function fetchProfile() {
@@ -268,8 +259,6 @@ export function UserDashboardView({ session, privateKey }: UserDashboardViewProp
         const online = new Set<string>();
         Object.values(state).forEach((users: any) => { users.forEach((u: any) => online.add(u.user_id)); });
         setOnlineUsers(online);
-        // Refresh profiles to pick up updated_at timestamps
-        fetchProfiles();
       }).subscribe();
 
       presenceChannelRef.current = presenceChannel;
@@ -306,8 +295,6 @@ export function UserDashboardView({ session, privateKey }: UserDashboardViewProp
       </div>
     );
   }
-
-  const onlineNodesCount = profiles.filter(p => isUserOnline(p)).length + (isUserOnline(myProfile) ? 1 : 0);
 
   return (
     <div className="flex h-[100dvh] bg-[#030303] text-white overflow-hidden font-sans selection:bg-indigo-500/30">
@@ -436,7 +423,7 @@ export function UserDashboardView({ session, privateKey }: UserDashboardViewProp
                   <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
                     {[
                       { label: "Signals", value: unreadCount, icon: MessageCircle, color: "from-indigo-600 to-indigo-700" },
-                      { label: "Nodes", value: onlineNodesCount, icon: Users, color: "from-emerald-600 to-emerald-700" },
+                      { label: "Nodes", value: onlineUsers.size, icon: Users, color: "from-emerald-600 to-emerald-700" },
                       { label: "Entities", value: profiles.length, icon: User, color: "from-purple-600 to-purple-700" },
                       { label: "Security", value: "E2EE", icon: Shield, color: "from-orange-600 to-orange-700" }
                     ].map((stat, i) => (
@@ -455,16 +442,21 @@ export function UserDashboardView({ session, privateKey }: UserDashboardViewProp
                     <div className="bg-white/[0.02] border border-white/5 rounded-[2rem] p-6">
                       <h3 className="text-sm font-black uppercase tracking-[0.3em] mb-6 font-accent">Recent Channels</h3>
                       <div className="space-y-2">
-                        {recentChats.map(chat => (
-                          <button key={chat.id} onClick={() => { setSelectedContact(chat); setActiveView("chat"); }} className="w-full flex items-center gap-4 p-4 hover:bg-white/5 rounded-2xl transition-all">
-                            <AvatarDisplay profile={chat} className="h-10 w-10" />
-                            <div className="flex-1 text-left">
+                          {recentChats.map(chat => (
+                            <button key={chat.id} onClick={() => { setSelectedContact(chat); setActiveView("chat"); }} className="w-full flex items-center gap-4 p-4 hover:bg-white/5 rounded-2xl transition-all">
+                              <AvatarDisplay profile={chat} className="h-10 w-10" />
+                              <div className="flex-1 text-left">
                                 <p className="font-black text-sm uppercase italic font-accent">{chat.username}</p>
-                                <p className={`text-[8px] font-bold uppercase tracking-wider ${isUserOnline(chat) ? 'text-emerald-500' : 'text-white/20'}`}>{isUserOnline(chat) ? 'Online' : 'Offline'}</p>
-                            </div>
-                            <ChevronRight className="w-4 h-4 text-white/10" />
-                          </button>
-                        ))}
+                                <div className="flex items-center gap-1.5 mt-0.5">
+                                  <div className={`w-1 h-1 rounded-full ${onlineUsers.has(chat.id) ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]' : 'bg-white/10'}`} />
+                                  <p className={`text-[8px] font-bold uppercase tracking-widest ${onlineUsers.has(chat.id) ? 'text-emerald-500' : 'text-white/20'}`}>
+                                    {onlineUsers.has(chat.id) ? 'Online' : 'Offline'}
+                                  </p>
+                                </div>
+                              </div>
+                              <ChevronRight className="w-4 h-4 text-white/10" />
+                            </button>
+                          ))}
                       </div>
                     </div>
                     <div className="bg-white/[0.02] border border-white/5 rounded-[2rem] p-6">
@@ -472,14 +464,8 @@ export function UserDashboardView({ session, privateKey }: UserDashboardViewProp
                       <div className="grid grid-cols-2 gap-3">
                         {profiles.map(p => (
                           <div key={p.id} onClick={() => { setSelectedContact(p); setActiveView("chat"); }} className="p-4 bg-white/[0.02] border border-white/5 rounded-2xl flex flex-col items-center gap-3 cursor-pointer hover:border-indigo-500/30">
-                            <div className="relative">
-                                <AvatarDisplay profile={p} className="h-10 w-10" />
-                                <div className={`absolute -bottom-1 -right-1 w-3 h-3 rounded-full border-2 border-[#030303] ${isUserOnline(p) ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]' : 'bg-zinc-600'}`} />
-                            </div>
-                            <div className="text-center">
-                                <p className="text-[10px] font-black uppercase font-accent">{p.username}</p>
-                                <p className={`text-[7px] font-bold uppercase tracking-widest ${isUserOnline(p) ? 'text-emerald-500' : 'text-white/20'}`}>{isUserOnline(p) ? 'Online' : 'Offline'}</p>
-                            </div>
+                            <AvatarDisplay profile={p} className="h-10 w-10" />
+                            <p className="text-[10px] font-black uppercase font-accent">{p.username}</p>
                           </div>
                         ))}
                       </div>
@@ -525,14 +511,13 @@ export function UserDashboardView({ session, privateKey }: UserDashboardViewProp
                                 .filter(p => p.username.toLowerCase().includes(chatSearchQuery.toLowerCase()))
                           .map(p => (
                                     <button key={p.id} onClick={() => { setSelectedContact(p); if (window.innerWidth < 1024) setActiveView("chat"); }} className="flex items-center gap-4 p-6 bg-white/[0.02] border border-white/5 rounded-[2.5rem] hover:bg-white/[0.05] transition-all group">
-                                      <div className="relative">
-                                          <AvatarDisplay profile={p} className="h-14 w-14 group-hover:scale-110 transition-transform" />
-                                          <div className={`absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-2 border-[#030303] ${isUserOnline(p) ? 'bg-emerald-500 animate-pulse' : 'bg-zinc-600'}`} />
-                                      </div>
+                                      <AvatarDisplay profile={p} className="h-14 w-14 group-hover:scale-110 transition-transform" />
                                       <div className="flex-1 text-left">
                                         <p className="font-black text-lg uppercase italic font-accent">{p.username}</p>
                                         <div className="flex items-center gap-2">
-                                            <p className={`text-[10px] font-bold uppercase tracking-widest ${isUserOnline(p) ? 'text-emerald-500' : 'text-white/30'}`}>{isUserOnline(p) ? 'Online' : 'Offline'}</p>
+                                            <div className={`w-1.5 h-1.5 rounded-full ${onlineUsers.has(p.id) ? 'bg-emerald-500 animate-pulse' : 'bg-white/10'}`} />
+                                            <p className="text-[10px] font-bold uppercase tracking-widest text-white/30">{onlineUsers.has(p.id) ? 'Online' : 'Offline'}</p>
+
                                         </div>
                                       </div>
                                       <ChevronRight className="w-5 h-5 text-white/10 group-hover:text-indigo-400 group-hover:translate-x-1 transition-all" />
@@ -546,7 +531,7 @@ export function UserDashboardView({ session, privateKey }: UserDashboardViewProp
                               session={session} 
                               privateKey={privateKey} 
                               initialContact={selectedContact} 
-                              isPartnerOnline={isUserOnline(selectedContact)}
+                              isPartnerOnline={onlineUsers.has(selectedContact.id)}
                               onBack={() => setSelectedContact(null)}
                               onInitiateCall={(c, m) => setActiveCall({ contact: c, mode: m, isInitiator: true })} 
                             />
@@ -564,10 +549,7 @@ export function UserDashboardView({ session, privateKey }: UserDashboardViewProp
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     {profiles.map(p => (
                       <div key={p.id} className="p-6 bg-white/[0.02] border border-white/5 rounded-3xl flex flex-col items-center gap-4">
-                        <div className="relative">
-                            <AvatarDisplay profile={p} className="h-16 w-16" />
-                            <div className={`absolute bottom-0 right-0 w-4 h-4 rounded-full border-2 border-[#030303] ${isUserOnline(p) ? 'bg-emerald-500' : 'bg-zinc-600'}`} />
-                        </div>
+                        <AvatarDisplay profile={p} className="h-16 w-16" />
                         <p className="font-black text-lg uppercase font-accent">{p.username}</p>
                         <div className="flex gap-2 w-full">
                           <Button onClick={() => setActiveCall({ contact: p, mode: "voice", isInitiator: true })} className="flex-1 bg-emerald-600 font-accent uppercase text-[10px]">Voice</Button>
