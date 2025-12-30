@@ -21,48 +21,38 @@ export default function Home() {
   const [otpVerified, setOtpVerified] = useState(false);
   const [isAppUnlocked, setIsAppUnlocked] = useState(false);
 
-    useEffect(() => {
+  useEffect(() => {
     if (!session?.user) return;
 
-    const channel = supabase.channel("online-users", {
-      config: {
-        presence: {
-          key: session.user.id,
-        },
-      },
-    });
+    const channel = supabase.channel("online-users");
     
     const trackPresence = async () => {
-      await channel.track({
-        user_id: session.user.id,
-        online_at: new Date().toISOString(),
+      await channel.subscribe(async (status) => {
+        if (status === "SUBSCRIBED") {
+          await channel.track({
+            user_id: session.user.id,
+            online_at: new Date().toISOString(),
+          });
+          // Update profile heartbeat
+          await supabase.from("profiles").update({ updated_at: new Date().toISOString() }).eq("id", session.user.id);
+        }
       });
-      // Update profile heartbeat
-      await supabase.from("profiles").update({ updated_at: new Date().toISOString() }).eq("id", session.user.id);
     };
 
-    channel.subscribe(async (status) => {
-      if (status === "SUBSCRIBED") {
-        await trackPresence();
-      }
-    });
-
-    const heartbeat = setInterval(async () => {
-      if (document.visibilityState === "visible") {
-        await trackPresence();
-      }
-    }, 15000);
+    trackPresence();
 
     const handleVisibilityChange = () => {
       if (document.visibilityState === "visible") {
-        trackPresence();
+        channel.track({
+          user_id: session.user.id,
+          online_at: new Date().toISOString(),
+        });
       }
     };
 
     document.addEventListener("visibilitychange", handleVisibilityChange);
 
     return () => {
-      clearInterval(heartbeat);
       document.removeEventListener("visibilitychange", handleVisibilityChange);
       channel.unsubscribe();
     };

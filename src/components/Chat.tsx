@@ -774,31 +774,6 @@ export function Chat({ session, privateKey, initialContact, isPartnerOnline, onB
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Typing Indicator */}
-      <AnimatePresence>
-        {partnerPresence.isTyping && (
-          <motion.div 
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 10 }}
-            className="px-6 py-2 flex items-center gap-3"
-          >
-            <div className="relative">
-              <AvatarDisplay profile={initialContact} className="h-6 w-6" />
-              <div className="absolute -bottom-0.5 -right-0.5 w-2 h-2 bg-blue-500 rounded-full border border-[#030303] animate-pulse" />
-            </div>
-            <div className="flex items-center gap-1.5">
-              <span className="text-[10px] font-black italic uppercase tracking-widest text-blue-400">Typing</span>
-              <div className="flex gap-0.5">
-                <motion.div animate={{ opacity: [0, 1, 0] }} transition={{ repeat: Infinity, duration: 1, delay: 0 }} className="w-0.5 h-0.5 bg-blue-400 rounded-full" />
-                <motion.div animate={{ opacity: [0, 1, 0] }} transition={{ repeat: Infinity, duration: 1, delay: 0.2 }} className="w-0.5 h-0.5 bg-blue-400 rounded-full" />
-                <motion.div animate={{ opacity: [0, 1, 0] }} transition={{ repeat: Infinity, duration: 1, delay: 0.4 }} className="w-0.5 h-0.5 bg-blue-400 rounded-full" />
-              </div>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
       {/* Input Area */}
       <footer className="p-6 bg-black/40 backdrop-blur-3xl border-t border-white/5 relative z-30 shrink-0">
         <div className="flex items-center gap-3 relative">

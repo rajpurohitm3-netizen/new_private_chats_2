@@ -184,39 +184,39 @@ export function UserDashboardView({ session, privateKey }: UserDashboardViewProp
       setUnreadCount(count || 0);
     }
 
-      async function showNotification(title: string, options?: NotificationOptions) {
-        // Play sound
-        if (notificationSound.current) {
-          notificationSound.current.play().catch(e => console.error("Sound play failed:", e));
-        }
+    async function showNotification(title: string, options?: NotificationOptions) {
+      // Play sound
+      if (notificationSound.current) {
+        notificationSound.current.play().catch(e => console.error("Sound play failed:", e));
+      }
 
-        // Show browser notification via Service Worker if available for better mobile/background support
-        if ('serviceWorker' in navigator && 'Notification' in window && Notification.permission === "granted") {
-          const registration = await navigator.serviceWorker.ready;
-          registration.showNotification(title, {
+      // Show browser notification via Service Worker if available for better mobile/background support
+      if ('serviceWorker' in navigator && 'Notification' in window && Notification.permission === "granted") {
+        const registration = await navigator.serviceWorker.ready;
+        registration.showNotification(title, {
+          icon: "/icon.png",
+          badge: "/icon.png",
+          vibrate: [100, 50, 100],
+          ...options
+        } as any);
+      } else if ("Notification" in window && Notification.permission === "granted") {
+        try {
+          const n = new Notification(title, {
             icon: "/icon.png",
             badge: "/icon.png",
-            vibrate: [100, 50, 100],
             ...options
-          } as any);
-        } else if ("Notification" in window && Notification.permission === "granted") {
-          try {
-            const n = new Notification(title, {
-              icon: "/icon.png",
-              badge: "/icon.png",
-              ...options
-            });
-            n.onclick = () => {
-              window.focus();
-              n.close();
-            };
-          } catch (e) {
-            console.error("Browser notification failed:", e);
-          }
+          });
+          n.onclick = () => {
+            window.focus();
+            n.close();
+          };
+        } catch (e) {
+          console.error("Browser notification failed:", e);
         }
       }
-  
-      const presenceChannelRef = useRef<any>(null);
+    }
+
+    const presenceChannelRef = useRef<any>(null);
 
     function setupRealtimeSubscriptions() {
       const broadcastsChannel = supabase.channel("global-broadcasts").on("postgres_changes", { event: "INSERT", schema: "public", table: "broadcasts" }, (payload) => {
@@ -307,16 +307,13 @@ export function UserDashboardView({ session, privateKey }: UserDashboardViewProp
                   <h2 className="text-xl font-black italic tracking-tighter uppercase font-accent">Chatify <span className="text-indigo-500">Core</span></h2>
                   <Button variant="ghost" size="icon" onClick={() => setMobileMenuOpen(false)} className="text-white/20 hover:text-white bg-white/5 rounded-xl"><X className="w-5 h-5" /></Button>
                 </div>
-                <div className="flex items-center gap-4 mb-12 p-4 bg-white/[0.02] border border-white/5 rounded-[2rem] relative">
-                  <div className="relative">
-                    <AvatarDisplay profile={myProfile} className="h-12 w-12" />
-                    <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-blue-500 rounded-full border-2 border-[#050505] animate-pulse shadow-[0_0_10px_rgba(59,130,246,0.5)]" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="font-semibold text-sm uppercase tracking-tight truncate leading-tight font-accent">{myProfile.username}</p>
-                    <p className="text-[9px] font-medium text-blue-400 uppercase tracking-wider mt-0.5 font-sans">Online</p>
-                  </div>
+              <div className="flex items-center gap-4 mb-12 p-4 bg-white/[0.02] border border-white/5 rounded-[2rem]">
+                <AvatarDisplay profile={myProfile} className="h-12 w-12" />
+                <div className="flex-1 min-w-0">
+                  <p className="font-semibold text-sm uppercase tracking-tight truncate leading-tight font-accent">{myProfile.username}</p>
+                  <p className="text-[9px] font-medium text-emerald-500/80 uppercase tracking-wider mt-0.5 font-sans">Online</p>
                 </div>
+              </div>
                 <nav className="flex-1 space-y-1">
                   {navItems.map((item) => {
                     const isActive = activeView === item.id;
@@ -362,16 +359,13 @@ export function UserDashboardView({ session, privateKey }: UserDashboardViewProp
       </AnimatePresence>
 
       <motion.aside initial={{ x: -100, opacity: 0 }} animate={{ x: 0, opacity: 1 }} className={`${sidebarOpen ? 'w-80' : 'w-24'} border-r border-white/5 bg-[#050505]/80 backdrop-blur-3xl flex flex-col transition-all duration-500 hidden lg:flex relative z-40 h-full overflow-hidden`}>
-          <div className={`p-6 border-b border-white/5 shrink-0 flex items-center ${sidebarOpen ? 'justify-between' : 'justify-center'}`}>
-            <div className="flex items-center gap-5">
-              <div className="relative">
-                <AvatarDisplay profile={myProfile} className="h-12 w-12" />
-                <div className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 bg-blue-500 rounded-full border-2 border-[#050505] animate-pulse shadow-[0_0_10px_rgba(59,130,246,0.5)]" />
-              </div>
-              {sidebarOpen && <div className="flex-1 min-w-0"><p className="font-semibold text-sm uppercase tracking-tight truncate font-accent">{myProfile.username}</p></div>}
-            </div>
-            {sidebarOpen && <Button variant="ghost" size="icon" onClick={() => setSidebarOpen(false)}><Menu className="w-5 h-5" /></Button>}
+        <div className={`p-6 border-b border-white/5 shrink-0 flex items-center ${sidebarOpen ? 'justify-between' : 'justify-center'}`}>
+          <div className="flex items-center gap-5">
+            <AvatarDisplay profile={myProfile} className="h-12 w-12" />
+            {sidebarOpen && <div className="flex-1 min-w-0"><p className="font-semibold text-sm uppercase tracking-tight truncate font-accent">{myProfile.username}</p></div>}
           </div>
+          {sidebarOpen && <Button variant="ghost" size="icon" onClick={() => setSidebarOpen(false)}><Menu className="w-5 h-5" /></Button>}
+        </div>
         {!sidebarOpen && <div className="p-4 flex justify-center border-b border-white/5"><Button variant="ghost" size="icon" onClick={() => setSidebarOpen(true)}><Menu className="w-5 h-5" /></Button></div>}
           <nav className="flex-1 p-6 space-y-3">
             {navItems.map((item) => {
@@ -512,10 +506,11 @@ export function UserDashboardView({ session, privateKey }: UserDashboardViewProp
                                       <AvatarDisplay profile={p} className="h-14 w-14 group-hover:scale-110 transition-transform" />
                                       <div className="flex-1 text-left">
                                         <p className="font-black text-lg uppercase italic font-accent">{p.username}</p>
-                                            <div className="flex items-center gap-2">
-                                                <div className={`w-1.5 h-1.5 rounded-full ${onlineUsers.has(p.id) ? 'bg-blue-500 animate-pulse' : 'bg-white/10'}`} />
-                                                <p className={`text-[10px] font-bold uppercase tracking-widest ${onlineUsers.has(p.id) ? 'text-blue-400' : 'text-white/30'}`}>{onlineUsers.has(p.id) ? 'Online' : 'Offline'}</p>
-                                            </div>
+                                        <div className="flex items-center gap-2">
+                                            <div className={`w-1.5 h-1.5 rounded-full ${onlineUsers.has(p.id) ? 'bg-emerald-500 animate-pulse' : 'bg-white/10'}`} />
+                                            <p className="text-[10px] font-bold uppercase tracking-widest text-white/30">{onlineUsers.has(p.id) ? 'Online' : 'Offline'}</p>
+
+                                        </div>
                                       </div>
                                       <ChevronRight className="w-5 h-5 text-white/10 group-hover:text-indigo-400 group-hover:translate-x-1 transition-all" />
                                     </button>

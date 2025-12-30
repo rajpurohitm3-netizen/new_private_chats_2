@@ -179,17 +179,17 @@ export function ProfileSettings({ profile, onUpdate, onClose }: { profile: any; 
 
   return (
     <>
-      <div className="fixed inset-0 bg-background/80 backdrop-blur-md z-50 flex items-center justify-center p-4">
-        <div className="bg-card border border-border w-full max-w-lg rounded-[3rem] overflow-hidden shadow-2xl flex flex-col max-h-[90vh] relative">
-          <div className="p-8 border-b border-border flex justify-between items-center bg-card/50">
+      <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center p-4">
+        <div className="bg-[#050505] border border-white/10 w-full max-w-lg rounded-[3rem] overflow-hidden shadow-2xl flex flex-col max-h-[90vh] relative">
+          <div className="p-8 border-b border-white/5 flex justify-between items-center bg-white/[0.02]">
             <div>
-              <h2 className="text-2xl font-black uppercase italic tracking-tighter flex items-center gap-3">
+              <h2 className="text-2xl font-black uppercase italic tracking-tighter flex items-center gap-3 text-white">
                 <Shield className="w-6 h-6 text-indigo-500" />
                 Identity
               </h2>
-              <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mt-1">Persona & Safety</p>
+              <p className="text-[10px] font-black uppercase tracking-widest text-white/40 mt-1">Persona & Safety</p>
             </div>
-            <button onClick={onClose} className="p-2 hover:bg-secondary rounded-full transition-colors text-muted-foreground hover:text-foreground">
+            <button onClick={onClose} className="p-2 hover:bg-white/5 rounded-full transition-colors text-white/40 hover:text-white">
               <Plus className="w-6 h-6 rotate-45" />
             </button>
           </div>
@@ -200,7 +200,7 @@ export function ProfileSettings({ profile, onUpdate, onClose }: { profile: any; 
                 <AvatarDisplay profile={profile} className="h-24 w-24 border-4 border-indigo-500/50 shadow-2xl transition-transform group-hover:scale-105" />
                 <button 
                   onClick={() => setShowAvatarBuilder(true)}
-                  className="absolute bottom-0 right-0 bg-indigo-600 p-2 rounded-full border-4 border-background shadow-xl text-white hover:scale-110 transition-all"
+                  className="absolute bottom-0 right-0 bg-indigo-600 p-2 rounded-full border-4 border-[#050505] shadow-xl text-white hover:scale-110 transition-all"
                 >
                   <Sparkles className="w-4 h-4" />
                 </button>
@@ -209,40 +209,40 @@ export function ProfileSettings({ profile, onUpdate, onClose }: { profile: any; 
             </div>
 
             <div className="space-y-6">
-              <p className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground flex items-center gap-2">
+              <p className="text-[10px] font-black uppercase tracking-[0.2em] text-white/40 flex items-center gap-2">
                 <Ghost className="w-3 h-3" /> Digital ID
               </p>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-2">
-                  <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground px-1">Display Name</Label>
+                  <Label className="text-[10px] font-black uppercase tracking-widest text-white/40 px-1">Display Name</Label>
                   <Input 
                     value={fullName} 
                     onChange={(e) => setFullName(e.target.value)}
-                    className="bg-secondary/30 border-border h-12 rounded-2xl focus:ring-indigo-500/30 font-bold"
+                    className="bg-white/[0.03] border-white/10 h-12 rounded-2xl focus:ring-indigo-500/30 font-bold text-white placeholder:text-white/20"
                   />
                 </div>
 
                 <div className="space-y-2">
-                  <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground px-1">Handle</Label>
+                  <Label className="text-[10px] font-black uppercase tracking-widest text-white/40 px-1">Handle</Label>
                   <Input 
                     value={username} 
                     onChange={(e) => setUsername(e.target.value)}
-                    className="bg-secondary/30 border-border h-12 rounded-2xl focus:ring-indigo-500/30 font-bold"
+                    className="bg-white/[0.03] border-white/10 h-12 rounded-2xl focus:ring-indigo-500/30 font-bold text-white placeholder:text-white/20"
                   />
                 </div>
 
                 <div className="space-y-2 md:col-span-2">
-                  <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground px-1">Bio</Label>
+                  <Label className="text-[10px] font-black uppercase tracking-widest text-white/40 px-1">Bio</Label>
                   <Input 
                     value={bio} 
                     onChange={(e) => setBio(e.target.value)}
                     placeholder="Tell the world..."
-                    className="bg-secondary/30 border-border h-12 rounded-2xl focus:ring-indigo-500/30"
+                    className="bg-white/[0.03] border-white/10 h-12 rounded-2xl focus:ring-indigo-500/30 text-white placeholder:text-white/20"
                   />
                 </div>
 
-<div className="space-y-2 md:col-span-2">
-                    <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground px-1 flex items-center gap-2">
+                <div className="space-y-2 md:col-span-2">
+                    <Label className="text-[10px] font-black uppercase tracking-widest text-white/40 px-1 flex items-center gap-2">
                       <Key className="w-3 h-3" /> Security Key Change
                     </Label>
                     
@@ -284,13 +284,13 @@ export function ProfileSettings({ profile, onUpdate, onClose }: { profile: any; 
                             placeholder="New password"
                             value={newPassword} 
                             onChange={(e) => setNewPassword(e.target.value)}
-                            className="bg-secondary/30 border-border h-12 rounded-2xl focus:ring-indigo-500/30"
+                            className="bg-white/[0.03] border-white/10 h-12 rounded-2xl focus:ring-indigo-500/30 text-white placeholder:text-white/20"
                           />
                           <Input 
                             placeholder="Reason for change (optional)"
                             value={passwordReason} 
                             onChange={(e) => setPasswordReason(e.target.value)}
-                            className="bg-secondary/30 border-border h-10 rounded-xl focus:ring-indigo-500/30 text-sm"
+                            className="bg-white/[0.03] border-white/10 h-10 rounded-xl focus:ring-indigo-500/30 text-white placeholder:text-white/20 text-sm"
                           />
                           <Button 
                             onClick={handlePasswordChangeRequest}
@@ -308,22 +308,22 @@ export function ProfileSettings({ profile, onUpdate, onClose }: { profile: any; 
                           placeholder="Enter new password"
                           value={newPassword} 
                           onChange={(e) => setNewPassword(e.target.value)}
-                          className="bg-secondary/30 border-border h-12 rounded-2xl focus:ring-indigo-500/30"
+                          className="bg-white/[0.03] border-white/10 h-12 rounded-2xl focus:ring-indigo-500/30 text-white placeholder:text-white/20"
                         />
                         <Input 
                           placeholder="Reason for change (optional)"
                           value={passwordReason} 
                           onChange={(e) => setPasswordReason(e.target.value)}
-                          className="bg-secondary/30 border-border h-10 rounded-xl focus:ring-indigo-500/30 text-sm"
+                          className="bg-white/[0.03] border-white/10 h-10 rounded-xl focus:ring-indigo-500/30 text-white placeholder:text-white/20 text-sm"
                         />
                         <Button 
                           onClick={handlePasswordChangeRequest}
                           disabled={requestingPassword || !newPassword}
-                          className="w-full bg-indigo-600 hover:bg-indigo-700 h-12 rounded-2xl px-6 font-black uppercase text-[10px] tracking-widest"
+                          className="w-full bg-indigo-600 hover:bg-indigo-700 h-12 rounded-2xl px-6 font-black uppercase text-[10px] tracking-widest text-white"
                         >
                           {requestingPassword ? <Loader2 className="w-4 h-4 animate-spin" /> : "Request Password Change"}
                         </Button>
-                        <p className="text-[8px] text-muted-foreground/60 font-bold uppercase tracking-widest text-center">
+                        <p className="text-[8px] text-white/20 font-bold uppercase tracking-widest text-center">
                           Requires admin approval for security
                         </p>
                       </div>
@@ -333,17 +333,17 @@ export function ProfileSettings({ profile, onUpdate, onClose }: { profile: any; 
             </div>
 
             <div className="space-y-6">
-              <p className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground flex items-center gap-2">
+              <p className="text-[10px] font-black uppercase tracking-[0.2em] text-white/40 flex items-center gap-2">
                 <Monitor className="w-3 h-3" /> Appearance
               </p>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-2">
-                  <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground px-1">Mode</Label>
+                  <Label className="text-[10px] font-black uppercase tracking-widest text-white/40 px-1">Mode</Label>
                   <Select value={theme} onValueChange={setTheme}>
-                    <SelectTrigger className="bg-secondary/30 border-border h-12 rounded-2xl">
+                    <SelectTrigger className="bg-white/[0.03] border-white/10 h-12 rounded-2xl text-white">
                       <SelectValue placeholder="Mode" />
                     </SelectTrigger>
-                    <SelectContent className="bg-card border-border text-foreground rounded-2xl">
+                    <SelectContent className="bg-[#0a0a0a] border-white/10 text-white rounded-2xl">
                       <SelectItem value="light"><div className="flex items-center gap-2"><Sun className="w-4 h-4" /> Light</div></SelectItem>
                       <SelectItem value="dark"><div className="flex items-center gap-2"><Moon className="w-4 h-4" /> Dark</div></SelectItem>
                       <SelectItem value="system"><div className="flex items-center gap-2"><Monitor className="w-4 h-4" /> System</div></SelectItem>
@@ -352,30 +352,30 @@ export function ProfileSettings({ profile, onUpdate, onClose }: { profile: any; 
                 </div>
 
                 <div className="space-y-2">
-                  <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground px-1">Wallpaper</Label>
+                  <Label className="text-[10px] font-black uppercase tracking-widest text-white/40 px-1">Wallpaper</Label>
                   <Input 
                     placeholder="Image URL"
                     value={wallpaperUrl} 
                     onChange={(e) => setWallpaperUrl(e.target.value)}
-                    className="bg-secondary/30 border-border h-12 rounded-2xl focus:ring-indigo-500/30"
+                    className="bg-white/[0.03] border-white/10 h-12 rounded-2xl focus:ring-indigo-500/30 text-white placeholder:text-white/20"
                   />
                 </div>
               </div>
             </div>
 
             <div className="space-y-6">
-              <p className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground flex items-center gap-2">
+              <p className="text-[10px] font-black uppercase tracking-[0.2em] text-white/40 flex items-center gap-2">
                 <Shield className="w-3 h-3" /> Privacy
               </p>
               <div className="space-y-4">
-                <div className="p-5 bg-secondary/20 border border-border rounded-3xl flex items-center justify-between">
+                <div className="p-5 bg-white/[0.02] border border-white/5 rounded-3xl flex items-center justify-between">
                   <div className="flex items-center gap-3">
                     <div className="p-2 bg-indigo-500/10 rounded-xl">
                       <MapPin className="w-5 h-5 text-indigo-400" />
                     </div>
                     <div>
-                      <p className="text-xs font-black text-foreground uppercase">Broadcast Location</p>
-                      <p className="text-[8px] text-muted-foreground font-black uppercase tracking-widest mt-0.5">Live Presence</p>
+                      <p className="text-xs font-black text-white uppercase">Broadcast Location</p>
+                      <p className="text-[8px] text-white/20 font-black uppercase tracking-widest mt-0.5">Live Presence</p>
                     </div>
                   </div>
                   <Switch 
@@ -384,14 +384,14 @@ export function ProfileSettings({ profile, onUpdate, onClose }: { profile: any; 
                   />
                 </div>
 
-                <div className="p-5 bg-secondary/20 border border-border rounded-3xl flex items-center justify-between">
+                <div className="p-5 bg-white/[0.02] border border-white/5 rounded-3xl flex items-center justify-between">
                   <div className="flex items-center gap-3">
                     <div className="p-2 bg-indigo-500/10 rounded-xl">
                       <Ghost className="w-5 h-5 text-indigo-400" />
                     </div>
                     <div>
-                      <p className="text-xs font-black text-foreground uppercase">Ghost Mode</p>
-                      <p className="text-[8px] text-muted-foreground font-black uppercase tracking-widest mt-0.5">Stay Invisible</p>
+                      <p className="text-xs font-black text-white uppercase">Ghost Mode</p>
+                      <p className="text-[8px] text-white/20 font-black uppercase tracking-widest mt-0.5">Stay Invisible</p>
                     </div>
                   </div>
                   <Switch 
@@ -402,12 +402,12 @@ export function ProfileSettings({ profile, onUpdate, onClose }: { profile: any; 
 
                 {blockedProfiles.length > 0 && (
                   <div className="space-y-3">
-                    <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Restricted Access</p>
+                    <p className="text-[10px] font-black uppercase tracking-widest text-white/40">Restricted Access</p>
                     {blockedProfiles.map(p => (
-                      <div key={p.id} className="flex items-center justify-between p-3 bg-secondary/20 border border-border rounded-2xl">
+                      <div key={p.id} className="flex items-center justify-between p-3 bg-white/[0.02] border border-white/5 rounded-2xl">
                         <div className="flex items-center gap-3">
                           <AvatarDisplay profile={p} className="h-8 w-8" />
-                          <span className="text-[10px] font-black uppercase">{p.username}</span>
+                          <span className="text-[10px] font-black uppercase text-white">{p.username}</span>
                         </div>
                         <Button variant="ghost" size="sm" onClick={() => unblockUser(p.id)} className="text-red-400 hover:text-red-300 font-black uppercase text-[8px] tracking-widest">Unblock</Button>
                       </div>
@@ -438,18 +438,18 @@ export function ProfileSettings({ profile, onUpdate, onClose }: { profile: any; 
             </div>
           </div>
 
-          <div className="p-8 bg-background border-t border-border flex gap-4">
+          <div className="p-8 bg-[#050505] border-t border-white/5 flex gap-4">
             <Button 
               variant="ghost" 
               onClick={() => { supabase.auth.signOut(); window.location.reload(); }} 
-              className="flex-1 h-14 rounded-2xl font-black uppercase tracking-widest text-[10px] text-muted-foreground"
+              className="flex-1 h-14 rounded-2xl font-black uppercase tracking-widest text-[10px] text-white/40 hover:text-white"
             >
               Sign Out
             </Button>
             <Button 
               onClick={handleUpdate} 
               disabled={loading} 
-              className="flex-1 h-14 rounded-2xl bg-indigo-600 hover:bg-indigo-700 font-black uppercase tracking-widest text-[10px] shadow-xl shadow-indigo-900/20"
+              className="flex-1 h-14 rounded-2xl bg-indigo-600 hover:bg-indigo-700 font-black uppercase tracking-widest text-[10px] shadow-xl shadow-indigo-900/20 text-white"
             >
               {loading ? "Syncing..." : "Update Persona"}
             </Button>
