@@ -90,7 +90,7 @@ export function PasswordGate({
             className="w-full h-16 rounded-2xl bg-indigo-600 hover:bg-indigo-500 text-white font-black text-xs uppercase tracking-[0.3em] group relative overflow-hidden"
           >
             <span className="relative z-10 flex items-center justify-center gap-2">
-              Authorize Uplink <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                Enter to Chat <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
             </span>
             <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:animate-[shimmer_1.5s_infinite] pointer-events-none" />
           </Button>

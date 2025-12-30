@@ -165,7 +165,7 @@ export function Auth() {
             <ShieldCheck className="w-6 h-6 text-indigo-400" />
           </motion.div>
           <h1 className="text-2xl font-semibold tracking-tight text-white mb-1">{isSignUp ? "Create Account" : "Secure Gateway"}</h1>
-          <p className="text-[10px] text-zinc-500 font-medium uppercase tracking-widest">{isSignUp ? "Request access to node" : "Establish secure uplink"}</p>
+            <p className="text-[10px] text-zinc-500 font-medium uppercase tracking-widest">{isSignUp ? "Initialize Neural Identity" : "Establish secure uplink"}</p>
         </div>
 
         <Card className="bg-white/[0.02] border-white/10 backdrop-blur-2xl shadow-2xl rounded-[2.5rem] overflow-hidden border-t-white/20">
