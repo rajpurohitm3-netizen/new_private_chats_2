@@ -88,29 +88,43 @@ export function Auth() {
         if (error) throw error;
         
         if (data.user) {
-          const { error: profileError } = await supabase.from("profiles").upsert({
-            id: data.user.id,
-            username: `${email.split("@")[0]}_${Math.floor(Math.random() * 1000)}`,
-            full_name: fullName.trim(),
-            phone: phoneNumber.trim() || null,
-            is_approved: true,
-            updated_at: new Date().toISOString(),
-          });
+            const { error: profileError } = await supabase.from("profiles").upsert({
+              id: data.user.id,
+              username: `${email.split("@")[0]}_${Math.floor(Math.random() * 1000)}`,
+              full_name: fullName.trim(),
+              phone: phoneNumber.trim() || null,
+              is_approved: false,
+              updated_at: new Date().toISOString(),
+            });
 
-          if (profileError) {
-            console.error("Profile creation error:", profileError);
-            toast.error("Account created but profile synchronization failed. Please contact admin.");
-            throw profileError;
+            if (profileError) {
+              console.error("Profile creation error:", profileError);
+              toast.error("Account created but profile synchronization failed. Please contact admin.");
+              throw profileError;
+            }
+
+            await confirmUserEmail(data.user.id);
+            setShowPendingMessage(true);
+            toast.success("Identity established. Access request submitted to Command Core.");
           }
-
-          await confirmUserEmail(data.user.id);
-          toast.success("Identity established. Intelligence node active.");
-          setIsSignUp(false);
+        } else {
+          const { error, data: { session } } = await supabase.auth.signInWithPassword({ email, password });
+          if (error) throw error;
+          
+          if (session?.user) {
+            const { data: profile } = await supabase
+              .from("profiles")
+              .select("is_approved")
+              .eq("id", session.user.id)
+              .single();
+            
+            if (profile && profile.is_approved === false) {
+              await supabase.auth.signOut();
+              toast.error("Access Pending: Your identity node is awaiting administrative clearance.");
+              return;
+            }
+          }
         }
-      } else {
-        const { error } = await supabase.auth.signInWithPassword({ email, password });
-        if (error) throw error;
-      }
     } catch (error: any) {
       toast.error(error.message);
     } finally {
