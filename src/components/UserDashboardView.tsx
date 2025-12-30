@@ -37,13 +37,18 @@ export function UserDashboardView({ session, privateKey }: UserDashboardViewProp
 
   const [myProfile, setMyProfile] = useState<any>(null);
   const [profiles, setProfiles] = useState<any[]>([]);
-    const [onlineUsers, setOnlineUsers] = useState<Set<string>>(new Set());
-    const [presenceData, setPresenceData] = useState<Record<string, any>>({});
+  const [onlineUsers, setOnlineUsers] = useState<Set<string>>(new Set());
   const [unreadCount, setUnreadCount] = useState(0);
   const [recentChats, setRecentChats] = useState<any[]>([]);
   const [showSettings, setShowSettings] = useState(false);
-  const [selectedContact, setSelectedContact] = useState<any>(null);
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+    const [selectedContact, setSelectedContact] = useState<any>(null);
+    const [partnerPresence, setPartnerPresence] = useState<{
+      isOnline: boolean;
+      isInChat: boolean;
+      isTyping: boolean;
+    }>({ isOnline: false, isInChat: false, isTyping: false });
+    const [sidebarOpen, setSidebarOpen] = useState(true);
+
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [notifications, setNotifications] = useState<any[]>([]);
   const [showNotifications, setShowNotifications] = useState(false);
@@ -258,29 +263,51 @@ export function UserDashboardView({ session, privateKey }: UserDashboardViewProp
       const presenceChannel = supabase.channel("online-users").on("presence", { event: "sync" }, () => {
         const state = presenceChannel.presenceState();
         const online = new Set<string>();
-        const data: Record<string, any> = {};
-        
-        Object.keys(state).forEach((key: string) => { 
-          const users = state[key];
-          users.forEach((u: any) => {
-            online.add(u.user_id);
-            data[u.user_id] = u;
-          });
-        });
-        
+        Object.values(state).forEach((users: any) => { users.forEach((u: any) => online.add(u.user_id)); });
         setOnlineUsers(online);
-        setPresenceData(data);
       }).subscribe();
 
       presenceChannelRef.current = presenceChannel;
-
-      return () => {
-        supabase.removeChannel(broadcastsChannel);
-        supabase.removeChannel(messagesChannel);
-        supabase.removeChannel(callsChannel);
-        supabase.removeChannel(presenceChannel);
-      };
-    }
+  
+        return () => {
+          supabase.removeChannel(broadcastsChannel);
+          supabase.removeChannel(messagesChannel);
+          supabase.removeChannel(callsChannel);
+          supabase.removeChannel(presenceChannel);
+        };
+      }
+  
+      useEffect(() => {
+        if (!selectedContact || !session.user) {
+          setPartnerPresence({ isOnline: false, isInChat: false, isTyping: false });
+          return;
+        }
+  
+        const userIds = [session.user.id, selectedContact.id].sort();
+        const channelName = `presence-chat-${userIds[0]}-${userIds[1]}`;
+        const channel = supabase.channel(channelName);
+  
+        channel
+          .on('presence', { event: 'sync' }, () => {
+            const state = channel.presenceState();
+            const partnerState: any = state[selectedContact.id];
+            if (partnerState && partnerState.length > 0) {
+              const latest = partnerState[partnerState.length - 1];
+              setPartnerPresence({
+                isOnline: true,
+                isInChat: latest.current_chat_id === session.user.id,
+                isTyping: latest.is_typing === true,
+              });
+            } else {
+              setPartnerPresence({ isOnline: false, isInChat: false, isTyping: false });
+            }
+          })
+          .subscribe();
+  
+        return () => {
+          supabase.removeChannel(channel);
+        };
+      }, [selectedContact, session.user]);
 
   const handleNavClick = (view: ActiveView) => {
     setActiveView(view);
@@ -378,7 +405,6 @@ export function UserDashboardView({ session, privateKey }: UserDashboardViewProp
           {sidebarOpen && <Button variant="ghost" size="icon" onClick={() => setSidebarOpen(false)}><Menu className="w-5 h-5" /></Button>}
         </div>
         {!sidebarOpen && <div className="p-4 flex justify-center border-b border-white/5"><Button variant="ghost" size="icon" onClick={() => setSidebarOpen(true)}><Menu className="w-5 h-5" /></Button></div>}
-          
           <nav className="flex-1 p-6 space-y-3">
             {navItems.map((item) => {
               const isActive = activeView === item.id;
@@ -410,31 +436,47 @@ export function UserDashboardView({ session, privateKey }: UserDashboardViewProp
 
                 );
               })}
-            </nav>
+              </nav>
 
-            {/* Bottom Status Panel */}
-            <div className="p-6 border-t border-white/5 bg-black/20">
-              <div className={`flex items-center ${sidebarOpen ? 'gap-4' : 'justify-center'}`}>
-                <div className="relative shrink-0">
-                  <AvatarDisplay profile={myProfile} className="h-9 w-9 ring-1 ring-white/10" />
-                  <motion.div 
-                    animate={{ scale: [1, 1.2, 1] }}
-                    transition={{ duration: 2, repeat: Infinity }}
-                    className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-blue-500 rounded-full border-2 border-[#050505] shadow-[0_0_8px_rgba(59,130,246,0.6)]" 
-                  />
-                </div>
-                {sidebarOpen && (
-                  <div className="flex-1 min-w-0">
-                    <p className="text-[10px] font-black uppercase tracking-wider text-white/90 truncate font-accent">{myProfile.username}</p>
-                    <div className="flex items-center gap-1.5 mt-0.5">
-                      <div className="w-1.5 h-1.5 bg-blue-400 rounded-full animate-pulse" />
-                      <p className="text-[8px] font-black text-blue-400/80 uppercase tracking-widest">Active Link</p>
-                    </div>
-                  </div>
+            <div className={`p-6 mt-auto border-t border-white/5 flex items-center ${sidebarOpen ? 'gap-4' : 'justify-center'}`}>
+              <div className="relative">
+                <AnimatePresence>
+                  {(partnerPresence.isOnline || partnerPresence.isInChat || partnerPresence.isTyping) && (
+                    <motion.div
+                      initial={{ scale: 0, opacity: 0 }}
+                      animate={{ 
+                        scale: 1, 
+                        opacity: 1,
+                        y: partnerPresence.isTyping ? [0, -8, 0] : 0 
+                      }}
+                      exit={{ scale: 0, opacity: 0 }}
+                      transition={{ 
+                        y: { 
+                          repeat: partnerPresence.isTyping ? Infinity : 0, 
+                          duration: 0.6, 
+                          ease: "easeInOut" 
+                        },
+                        scale: { type: "spring", stiffness: 300, damping: 20 }
+                      }}
+                      className="w-3 h-3 bg-blue-500 rounded-full shadow-[0_0_15px_rgba(59,130,246,0.6)]"
+                    />
+                  )}
+                </AnimatePresence>
+                {!partnerPresence.isOnline && !partnerPresence.isInChat && !partnerPresence.isTyping && (
+                  <div className="w-3 h-3 bg-zinc-800 rounded-full" />
                 )}
               </div>
+              {sidebarOpen && (
+                <div className="flex flex-col">
+                  <span className="text-[9px] font-black uppercase tracking-[0.2em] text-white/40">Partner Status</span>
+                  <span className="text-[10px] font-bold uppercase tracking-widest text-blue-400">
+                    {partnerPresence.isTyping ? 'Typing...' : partnerPresence.isInChat ? 'In Chat' : partnerPresence.isOnline ? 'Online' : 'Offline'}
+                  </span>
+                </div>
+              )}
             </div>
-        </motion.aside>
+          </motion.aside>
+
 
         <div className="flex-1 flex flex-col min-w-0 bg-[#030303] relative overflow-hidden h-full">
             <header className="lg:hidden h-20 border-b border-white/5 bg-[#050505]/80 backdrop-blur-3xl flex items-center justify-between px-6 z-30 shrink-0">
@@ -477,25 +519,13 @@ export function UserDashboardView({ session, privateKey }: UserDashboardViewProp
                     <div className="bg-white/[0.02] border border-white/5 rounded-[2rem] p-6">
                       <h3 className="text-sm font-black uppercase tracking-[0.3em] mb-6 font-accent">Recent Channels</h3>
                       <div className="space-y-2">
-                          {recentChats.map(chat => (
-                            <button key={chat.id} onClick={() => { setSelectedContact(chat); setActiveView("chat"); }} className="w-full flex items-center gap-4 p-4 hover:bg-white/5 rounded-2xl transition-all">
-                              <AvatarDisplay profile={chat} className="h-10 w-10" />
-                              <div className="flex-1 text-left">
-                                <p className="font-black text-sm uppercase italic font-accent">{chat.username}</p>
-                                <div className="flex items-center gap-2 mt-0.5">
-                                  <motion.div 
-                                    animate={presenceData[chat.id]?.is_typing ? { y: [0, -2, 0] } : {}}
-                                    transition={presenceData[chat.id]?.is_typing ? { duration: 0.6, repeat: Infinity } : {}}
-                                    className={`w-1 h-1 rounded-full ${onlineUsers.has(chat.id) ? 'bg-blue-500 shadow-[0_0_5px_rgba(59,130,246,0.5)]' : 'bg-white/5'}`} 
-                                  />
-                                  <span className="text-[7px] font-black uppercase tracking-tighter text-blue-400/60">
-                                    {presenceData[chat.id]?.is_typing ? 'Typing...' : presenceData[chat.id]?.current_chat_id ? 'In Chat' : onlineUsers.has(chat.id) ? 'Online' : 'Offline'}
-                                  </span>
-                                </div>
-                              </div>
-                              <ChevronRight className="w-4 h-4 text-white/10" />
-                            </button>
-                          ))}
+                        {recentChats.map(chat => (
+                          <button key={chat.id} onClick={() => { setSelectedContact(chat); setActiveView("chat"); }} className="w-full flex items-center gap-4 p-4 hover:bg-white/5 rounded-2xl transition-all">
+                            <AvatarDisplay profile={chat} className="h-10 w-10" />
+                            <div className="flex-1 text-left"><p className="font-black text-sm uppercase italic font-accent">{chat.username}</p></div>
+                            <ChevronRight className="w-4 h-4 text-white/10" />
+                          </button>
+                        ))}
                       </div>
                     </div>
                     <div className="bg-white/[0.02] border border-white/5 rounded-[2rem] p-6">

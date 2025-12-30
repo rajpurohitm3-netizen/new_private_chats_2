@@ -616,16 +616,12 @@ export function Chat({ session, privateKey, initialContact, isPartnerOnline, onB
         <AvatarDisplay profile={initialContact} className="h-10 w-10 ring-2 ring-indigo-500/20" />
           <div>
             <h3 className="text-sm font-black italic tracking-tighter uppercase text-white">{initialContact.username}</h3>
-        <div className="flex items-center gap-2">
-          <motion.div 
-            animate={(partnerPresence.isTyping) ? { y: [0, -3, 0] } : {}}
-            transition={(partnerPresence.isTyping) ? { duration: 0.6, repeat: Infinity, ease: "easeInOut" } : {}}
-            className={`w-1.5 h-1.5 rounded-full ${(isPartnerOnline ?? partnerPresence.isOnline) ? 'bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.5)]' : 'bg-zinc-600'}`} 
-          />
-          <span className={`text-[8px] font-black uppercase tracking-widest ${(isPartnerOnline ?? partnerPresence.isOnline) ? 'text-blue-400' : 'text-zinc-500'}`}>
-            {partnerPresence.isTyping ? 'Typing...' : partnerPresence.isInChat ? 'In Chat' : (isPartnerOnline ?? partnerPresence.isOnline) ? 'Online' : 'Offline'}
-          </span>
-        </div>
+      <div className="flex items-center gap-2">
+        <div className={`w-1.5 h-1.5 rounded-full ${(isPartnerOnline ?? partnerPresence.isOnline) ? 'bg-blue-500 animate-pulse' : 'bg-zinc-600'}`} />
+        <span className={`text-[8px] font-black uppercase tracking-widest ${(isPartnerOnline ?? partnerPresence.isOnline) ? 'text-blue-400' : 'text-zinc-500'}`}>
+          {(isPartnerOnline ?? partnerPresence.isOnline) ? 'Online' : 'Offline'}
+        </span>
+      </div>
           </div>
       </div>
       <div className="flex items-center gap-2">
@@ -777,27 +773,6 @@ export function Chat({ session, privateKey, initialContact, isPartnerOnline, onB
 
         <div ref={messagesEndRef} />
       </div>
-
-      {/* Typing Indicator Overlay */}
-      <AnimatePresence>
-        {(partnerPresence.isTyping || partnerPresence.isInChat) && (
-          <motion.div
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: -20 }}
-            className="absolute bottom-28 left-6 z-40 flex items-center gap-2.5 bg-black/60 backdrop-blur-xl px-4 py-2 rounded-full border border-white/10 shadow-2xl pointer-events-none"
-          >
-            <motion.div
-              animate={partnerPresence.isTyping ? { y: [0, -4, 0] } : {}}
-              transition={partnerPresence.isTyping ? { duration: 0.6, repeat: Infinity, ease: "easeInOut" } : {}}
-              className="w-2 h-2 rounded-full bg-blue-500 shadow-[0_0_10px_rgba(59,130,246,0.8)]"
-            />
-            <span className="text-[8px] font-black uppercase tracking-[0.2em] text-blue-400">
-              {partnerPresence.isTyping ? "Typing..." : "In Chat"}
-            </span>
-          </motion.div>
-        )}
-      </AnimatePresence>
 
       {/* Input Area */}
       <footer className="p-6 bg-black/40 backdrop-blur-3xl border-t border-white/5 relative z-30 shrink-0">
