@@ -525,7 +525,8 @@ export function AdminPanel({ onClose }: { onClose: () => void }) {
               <span className="text-[7px] md:text-[9px] font-black text-white/40 tracking-widest uppercase">Kernel</span>
               <span className={`text-[9px] md:text-[10px] font-black tracking-tighter ${kernelStatus === 'OVERCLOCKED' ? 'text-red-500' : 'text-emerald-500'}`}>{kernelStatus}</span>
             </div>
-            <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.5)]" />
+              <div className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse shadow-[0_0_8px_rgba(59,130,246,0.5)]" />
+
           </div>
         </div>
 
