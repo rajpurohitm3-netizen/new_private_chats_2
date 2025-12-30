@@ -613,16 +613,33 @@ export function Chat({ session, privateKey, initialContact, isPartnerOnline, onB
                   <ArrowLeft className="w-6 h-6" />
                 </Button>
               )}
-        <AvatarDisplay profile={initialContact} className="h-10 w-10 ring-2 ring-indigo-500/20" />
-          <div>
-            <h3 className="text-sm font-black italic tracking-tighter uppercase text-white">{initialContact.username}</h3>
-      <div className="flex items-center gap-2">
-        <div className={`w-1.5 h-1.5 rounded-full ${(isPartnerOnline ?? partnerPresence.isOnline) ? 'bg-blue-500 animate-pulse' : 'bg-zinc-600'}`} />
-        <span className={`text-[8px] font-black uppercase tracking-widest ${(isPartnerOnline ?? partnerPresence.isOnline) ? 'text-blue-400' : 'text-zinc-500'}`}>
-          {(isPartnerOnline ?? partnerPresence.isOnline) ? 'Online' : 'Offline'}
-        </span>
-      </div>
-          </div>
+          <AvatarDisplay profile={initialContact} className="h-10 w-10 ring-2 ring-indigo-500/20" />
+            <div>
+              <div className="flex items-center gap-2">
+                <h3 className="text-sm font-black italic tracking-tighter uppercase text-white">{initialContact.username}</h3>
+                {partnerPresence.isInChat && (
+                  <div className="flex items-center gap-1.5 bg-indigo-500/10 border border-indigo-500/20 px-2 py-0.5 rounded-full">
+                    <Eye className="w-2.5 h-2.5 text-indigo-400" />
+                    <span className="text-[7px] font-black uppercase tracking-widest text-indigo-400">Viewing</span>
+                  </div>
+                )}
+              </div>
+        <div className="flex items-center gap-2">
+          <div className={`w-1.5 h-1.5 rounded-full ${(isPartnerOnline ?? partnerPresence.isOnline) ? 'bg-emerald-500 animate-pulse' : 'bg-zinc-600'}`} />
+          <span className={`text-[8px] font-black uppercase tracking-widest ${(isPartnerOnline ?? partnerPresence.isOnline) ? 'text-emerald-400' : 'text-zinc-500'}`}>
+            {partnerPresence.isTyping ? (
+              <span className="flex items-center gap-1">
+                Typing
+                <span className="flex gap-0.5">
+                  <motion.span animate={{ opacity: [0, 1, 0] }} transition={{ repeat: Infinity, duration: 1 }} className="w-0.5 h-0.5 bg-emerald-400 rounded-full" />
+                  <motion.span animate={{ opacity: [0, 1, 0] }} transition={{ repeat: Infinity, duration: 1, delay: 0.2 }} className="w-0.5 h-0.5 bg-emerald-400 rounded-full" />
+                  <motion.span animate={{ opacity: [0, 1, 0] }} transition={{ repeat: Infinity, duration: 1, delay: 0.4 }} className="w-0.5 h-0.5 bg-emerald-400 rounded-full" />
+                </span>
+              </span>
+            ) : (isPartnerOnline ?? partnerPresence.isOnline) ? 'Online' : 'Offline'}
+          </span>
+        </div>
+            </div>
       </div>
       <div className="flex items-center gap-2">
         <Button variant="ghost" size="icon" onClick={() => onInitiateCall(initialContact, "voice")} className="text-white/20 hover:text-white hover:bg-white/5 rounded-xl"><Phone className="w-4 h-4" /></Button>
