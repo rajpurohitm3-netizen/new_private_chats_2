@@ -125,25 +125,7 @@ export function UserDashboardView({ session, privateKey }: UserDashboardViewProp
       }, [session.user.id]);
 
       async function updateOnlineStatus(online: boolean = true) {
-        if (!session?.user) return;
-        
-        if (presenceChannelRef.current) {
-          if (online) {
-            await presenceChannelRef.current.track({
-              user_id: session.user.id,
-              online_at: new Date().toISOString(),
-            });
-          } else {
-            await presenceChannelRef.current.untrack();
-          }
-        }
-
-        if (online) {
-          await supabase
-            .from("profiles")
-            .update({ updated_at: new Date().toISOString() })
-            .eq("id", session.user.id);
-        }
+        // No-op here, handled by Home component
       }
 
 

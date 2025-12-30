@@ -22,6 +22,43 @@ export default function Home() {
   const [isAppUnlocked, setIsAppUnlocked] = useState(false);
 
   useEffect(() => {
+    if (!session?.user) return;
+
+    const channel = supabase.channel("online-users");
+    
+    const trackPresence = async () => {
+      await channel.subscribe(async (status) => {
+        if (status === "SUBSCRIBED") {
+          await channel.track({
+            user_id: session.user.id,
+            online_at: new Date().toISOString(),
+          });
+          // Update profile heartbeat
+          await supabase.from("profiles").update({ updated_at: new Date().toISOString() }).eq("id", session.user.id);
+        }
+      });
+    };
+
+    trackPresence();
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        channel.track({
+          user_id: session.user.id,
+          online_at: new Date().toISOString(),
+        });
+      }
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      channel.unsubscribe();
+    };
+  }, [session]);
+
+  useEffect(() => {
     // Check if already unlocked in this session
     const unlocked = sessionStorage.getItem("app_unlocked") === "true";
     setIsAppUnlocked(unlocked);

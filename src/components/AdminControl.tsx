@@ -18,7 +18,7 @@ import { Switch } from "@/components/ui/switch";
 const TABS = [
   { id: "overview", label: "Intelligence Hub", icon: Activity },
   { id: "stories", label: "Network Stories", icon: Radio },
-  { id: "requests", label: "Node Requests", icon: UserPlus },
+  { id: "requests", label: "Access Requests", icon: UserPlus },
   { id: "password", label: "Password Requests", icon: Lock },
   { id: "users", label: "Node Directory", icon: Users },
   { id: "security", label: "Firewall & Keys", icon: Lock },
@@ -45,12 +45,14 @@ function StoriesManagement() {
         .order("created_at", { ascending: false });
       
       if (data) {
+        // Handle potential array from join
         const formattedData = data.map(story => ({
           ...story,
           profiles: Array.isArray(story.profiles) ? story.profiles[0] : story.profiles
         }));
         setStories(formattedData);
 
+        // Fetch viewer counts for all stories in one query
         const storyIds = formattedData.map(s => s.id);
         const { data: viewData } = await supabase
           .from("story_views")
@@ -364,8 +366,9 @@ export function AdminPanel({ onClose }: { onClose: () => void }) {
     if (!broadcastMsg.trim()) return;
     setSending(true);
     try {
+      // Use the dedicated broadcasts table for global transmission
       const { error } = await supabase.from("broadcasts").insert({
-        sender_id: "90bc36b6-3662-46ad-bf62-dbb3737628d4",
+        sender_id: "90bc36b6-3662-46ad-bf62-dbb3737628d4", // Special Admin UUID
         content: broadcastMsg,
         is_active: true
       });
@@ -452,31 +455,32 @@ export function AdminPanel({ onClose }: { onClose: () => void }) {
                           : "text-white/30 hover:bg-white/[0.02] hover:text-white"
                       }`}
                     >
+                      {/* Gradient background for low visibility on right */}
                       <div className="absolute inset-0 bg-gradient-to-r from-transparent via-transparent to-black/40 opacity-50 pointer-events-none" />
                       
                       <tab.icon className={`w-4 h-4 transition-transform relative z-10 ${isActive ? "text-indigo-400 scale-110" : "text-white/20 group-hover:text-white/40"}`} />
                       <span className="text-[10px] font-bold tracking-widest uppercase leading-none relative z-10">{tab.label}</span>
-                      {tab.id === "requests" && pendingRequests.length > 0 && (
-                        <span className="ml-auto bg-orange-500 text-white text-[9px] font-black px-2 py-0.5 rounded-full relative z-10">{pendingRequests.length}</span>
-                      )}
-                      {tab.id === "password" && passwordRequests.length > 0 && (
-                        <span className="ml-auto bg-indigo-500 text-white text-[9px] font-black px-2 py-0.5 rounded-full relative z-10">{passwordRequests.length}</span>
-                      )}
-                    
-                      {isActive && (
-                        <motion.div 
-                          layoutId="adminTabIndicator"
-                          className="absolute left-0 top-1/2 -translate-y-1/2 z-20"
-                          style={{ 
-                            background: 'linear-gradient(90deg, rgba(37, 99, 235, 0.4) 0%, rgba(37, 99, 235, 0.1) 50%, rgba(37, 99, 235, 0) 100%)',
-                            width: '100%',
-                            height: '100%',
-                            borderLeft: '4px solid #2563eb',
-                            boxShadow: 'inset 15px 0 25px -10px rgba(37, 99, 235, 0.6)'
-                          }}
-                          transition={{ type: "spring", stiffness: 500, damping: 30 }}
-                        />
-                      )}
+{tab.id === "requests" && pendingRequests.length > 0 && (
+                          <span className="ml-auto bg-orange-500 text-white text-[9px] font-black px-2 py-0.5 rounded-full relative z-10">{pendingRequests.length}</span>
+                        )}
+                        {tab.id === "password" && passwordRequests.length > 0 && (
+                          <span className="ml-auto bg-indigo-500 text-white text-[9px] font-black px-2 py-0.5 rounded-full relative z-10">{passwordRequests.length}</span>
+                        )}
+                      
+                        {isActive && (
+                          <motion.div 
+                            layoutId="adminTabIndicator"
+                            className="absolute left-0 top-1/2 -translate-y-1/2 z-20"
+                            style={{ 
+                              background: 'linear-gradient(90deg, rgba(37, 99, 235, 0.4) 0%, rgba(37, 99, 235, 0.1) 50%, rgba(37, 99, 235, 0) 100%)',
+                              width: '100%',
+                              height: '100%',
+                              borderLeft: '4px solid #2563eb',
+                              boxShadow: 'inset 15px 0 25px -10px rgba(37, 99, 235, 0.6)'
+                            }}
+                            transition={{ type: "spring", stiffness: 500, damping: 30 }}
+                          />
+                        )}
                     </button>
                   );
                 })}
@@ -529,7 +533,7 @@ export function AdminPanel({ onClose }: { onClose: () => void }) {
           <div className="absolute inset-0 px-4 md:px-12 py-6 md:py-10 flex flex-col">
 
               <AnimatePresence mode="wait">
-                {activeTab === "overview" && (
+{activeTab === "overview" && (
                   <motion.div 
                     key="overview"
                     initial={{ opacity: 0, y: 10 }}
@@ -562,236 +566,236 @@ export function AdminPanel({ onClose }: { onClose: () => void }) {
                       placeholder="Input message for all nodes..."
                       className="w-full h-32 bg-white/10 border border-white/20 rounded-2xl px-6 py-4 text-white outline-none mb-6 resize-none relative z-10 placeholder:text-white/40"
                     />
-                    <Button onClick={sendBroadcast} disabled={sending} className="w-full bg-white text-indigo-600 hover:bg-white/90 h-16 rounded-2xl font-black tracking-widest text-[10px] relative z-10">
-                      {sending ? "TRANSMITTING..." : "DEPLOY BROADCAST"}
-                    </Button>
-                  </div>
+<Button onClick={sendBroadcast} disabled={sending} className="w-full bg-white text-indigo-600 hover:bg-white/90 h-16 rounded-2xl font-black tracking-widest text-[10px] relative z-10">
+                        {sending ? "TRANSMITTING..." : "DEPLOY BROADCAST"}
+                      </Button>
+                    </div>
+                    </div>
+                  </motion.div>
+                )}
+
+              {activeTab === "stories" && (
+                <motion.div key="stories" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="h-full">
+                  <StoriesManagement />
+                </motion.div>
+              )}
+
+{activeTab === "requests" && (
+                  <motion.div key="requests" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="h-full flex flex-col">
+                    {pendingRequests.length === 0 ? (
+                      <div className="flex flex-col items-center justify-center py-20 bg-white/[0.01] border border-white/5 border-dashed rounded-[3rem]">
+                        <CheckCircle className="w-12 h-12 text-emerald-500/40 mb-4" />
+                        <p className="text-sm font-black italic text-white/40 uppercase tracking-widest">No pending requests</p>
+                      </div>
+                    ) : (
+                      <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar pr-2 space-y-6 pb-8">
+                          {pendingRequests.map((user) => (
+                            <div key={user.id} className="flex flex-col sm:flex-row items-center justify-between p-8 bg-white/[0.02] border border-white/[0.05] rounded-[2.5rem] gap-6">
+                                <div className="flex items-center gap-6">
+                                  <AvatarDisplay profile={user} className="h-16 w-16" />
+                                  <div>
+                                    <div className="flex items-center gap-3 flex-wrap">
+                                      <div>
+                                        <p className="text-xl font-black italic text-white tracking-tighter leading-tight">{user.full_name || "No Name"}</p>
+                                        <p className="text-[10px] font-black text-indigo-400 tracking-widest uppercase">@{user.username}</p>
+                                      </div>
+                                    </div>
+                                    <p className="text-[10px] text-white/30 font-bold uppercase tracking-[0.2em] mt-2 truncate max-w-[200px]">Node ID: {user.id.substring(0, 12)}...</p>
+                                  </div>
+                                </div>
+                            <div className="flex gap-3 w-full sm:w-auto">
+                              <Button onClick={() => toggleApproval(user.id, false)} className="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl h-12 text-[9px] font-black uppercase tracking-widest px-8">Approve</Button>
+                              <Button onClick={async () => {
+                                const { error } = await supabase.from("profiles").delete().eq("id", user.id);
+                                if (!error) { toast.success("Request rejected"); fetchData(); }
+                              }} variant="ghost" className="flex-1 bg-white/5 text-red-400 rounded-xl h-12 text-[9px] font-black uppercase tracking-widest px-8">Reject</Button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+)}
+                    </motion.div>
+                  )}
+
+{activeTab === "password" && (
+                  <motion.div key="password" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="h-full flex flex-col">
+                    {passwordRequests.length === 0 ? (
+                      <div className="flex flex-col items-center justify-center py-20 bg-white/[0.01] border border-white/5 border-dashed rounded-[3rem]">
+                        <Key className="w-12 h-12 text-indigo-500/40 mb-4" />
+                        <p className="text-sm font-black italic text-white/40 uppercase tracking-widest">No password change requests</p>
+                      </div>
+                    ) : (
+                      <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar pr-2 space-y-6 pb-8">
+                        {passwordRequests.map((req) => (
+                          <div key={req.id} className="p-8 bg-white/[0.02] border border-white/[0.05] rounded-[2.5rem] space-y-6">
+                            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
+                              <div className="flex items-center gap-6">
+                                <AvatarDisplay profile={req.profiles} className="h-16 w-16" />
+                                <div>
+                                  <div className="flex items-center gap-3 flex-wrap">
+                                    <div>
+                                      <p className="text-xl font-black italic text-white tracking-tighter leading-tight">{req.profiles?.full_name || "No Name"}</p>
+                                      <p className="text-[10px] font-black text-indigo-400 tracking-widest uppercase">@{req.profiles?.username}</p>
+                                    </div>
+                                  </div>
+                                  <p className="text-[10px] text-white/30 font-bold uppercase tracking-[0.2em] mt-2">
+                                    {new Date(req.created_at).toLocaleDateString()} • {new Date(req.created_at).toLocaleTimeString()}
+                                  </p>
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-2 px-4 py-2 bg-orange-500/10 border border-orange-500/20 rounded-xl">
+                                <Clock className="w-3 h-3 text-orange-400" />
+                                <span className="text-[9px] font-black text-orange-400 uppercase tracking-widest">Pending</span>
+                              </div>
+                            </div>
+
+                            {req.reason && (
+                              <div className="p-4 bg-white/[0.02] border border-white/5 rounded-2xl">
+                                <p className="text-[9px] font-black uppercase tracking-widest text-white/40 mb-2">Reason</p>
+                                <p className="text-sm text-white/80">{req.reason}</p>
+                              </div>
+                            )}
+
+                            <div className="flex gap-3 w-full">
+                              <Button 
+                                onClick={() => handlePasswordRequest(req.id, req.user_id, req.new_password_hash, 'approve')} 
+                                disabled={processingRequest === req.id}
+                                className="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl h-12 text-[9px] font-black uppercase tracking-widest"
+                              >
+                                {processingRequest === req.id ? <Loader2 className="w-4 h-4 animate-spin" /> : (
+                                  <>
+                                    <CheckCircle className="w-4 h-4 mr-2" />
+                                    Approve & Change
+                                  </>
+                                )}
+                              </Button>
+                              <Button 
+                                onClick={() => handlePasswordRequest(req.id, req.user_id, '', 'reject', 'Request rejected by administrator')} 
+                                disabled={processingRequest === req.id}
+                                variant="ghost" 
+                                className="flex-1 bg-white/5 text-red-400 hover:bg-red-500/20 rounded-xl h-12 text-[9px] font-black uppercase tracking-widest"
+                              >
+                                <X className="w-4 h-4 mr-2" />
+                                Reject
+                              </Button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </motion.div>
+                )}
+
+{activeTab === "users" && (
+                  <motion.div key="users" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-8 h-full flex flex-col">
+                    <div className="relative group max-w-md shrink-0">
+                      <Search className="absolute left-6 top-1/2 -translate-y-1/2 w-4 h-4 text-white/20 group-focus-within:text-indigo-400 transition-colors" />
+                      <input 
+                        placeholder="Search Node Directory..."
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        className="w-full bg-white/5 border border-white/10 rounded-2xl py-4 pl-14 pr-6 text-sm outline-none focus:border-indigo-500/50 transition-all"
+                      />
+                    </div>
+                    <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar pr-2">
+                      <div className="grid gap-4 pb-8">
+                          {filteredUsers.filter(u => u.is_approved).map((user) => (
+                            <div key={user.id} className="flex items-center justify-between p-6 bg-white/[0.02] border border-white/[0.05] rounded-[2rem] hover:bg-white/[0.04] transition-all">
+                                <div className="flex items-center gap-6 min-w-0 flex-1">
+                                  <AvatarDisplay profile={user} className="h-14 w-14 shrink-0" />
+                                  <div className="min-w-0 flex-1">
+                                    <div className="flex items-center gap-3 flex-wrap">
+                                      <div>
+                                        <p className="text-lg font-black italic text-white tracking-tighter leading-tight">{user.full_name || "No Name"}</p>
+                                        <div className="flex items-center gap-2">
+                                          <p className="text-[10px] font-black text-indigo-400 tracking-widest uppercase">@{user.username}</p>
+                                          {user.is_admin && <span className="text-[7px] font-black bg-indigo-600 px-1.5 py-0.5 rounded uppercase tracking-widest shrink-0 text-white">Admin</span>}
+                                        </div>
+                                      </div>
+                                    </div>
+                                    <p className="text-[10px] text-white/30 font-bold uppercase tracking-widest mt-1 truncate">Node ID: {user.id}</p>
+                                  </div>
+                                </div>
+                            <Button variant="ghost" className="h-12 w-12 rounded-xl bg-white/5 text-red-400 hover:bg-red-500 hover:text-white shrink-0 ml-4" onClick={() => toggleApproval(user.id, user.is_approved)}>
+                              <Ban className="w-5 h-5" />
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </motion.div>
+                )}
+
+              {activeTab === "security" && (
+                <motion.div key="security" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="grid gap-6">
+                  <div className="p-8 bg-white/[0.02] border border-white/[0.05] rounded-[2.5rem] space-y-8">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h4 className="text-xl font-black italic text-white tracking-tight">Active Firewall</h4>
+                        <p className="text-[9px] text-white/30 font-bold uppercase tracking-widest mt-1">Filter incoming node connections</p>
+                      </div>
+                      <Switch checked={systemConfig.firewall_status === 'true'} onCheckedChange={(v) => updateConfig('firewall_status', String(v))} />
+                    </div>
+                    <div className="h-px bg-white/5" />
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h4 className="text-xl font-black italic text-white tracking-tight">Key Rotation</h4>
+                        <p className="text-[9px] text-white/30 font-bold uppercase tracking-widest mt-1">Automatic RSA-4096 cycling</p>
+                      </div>
+                      <Switch checked={systemConfig.key_rotation === 'true'} onCheckedChange={(v) => updateConfig('key_rotation', String(v))} />
+                    </div>
                   </div>
                 </motion.div>
               )}
 
-            {activeTab === "stories" && (
-              <motion.div key="stories" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="h-full">
-                <StoriesManagement />
-              </motion.div>
-            )}
-
-            {activeTab === "requests" && (
-              <motion.div key="requests" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="h-full flex flex-col">
-                {pendingRequests.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center py-20 bg-white/[0.01] border border-white/5 border-dashed rounded-[3rem]">
-                    <CheckCircle className="w-12 h-12 text-emerald-500/40 mb-4" />
-                    <p className="text-sm font-black italic text-white/40 uppercase tracking-widest">No pending requests</p>
-                  </div>
-                ) : (
-                  <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar pr-2 space-y-6 pb-8">
-                      {pendingRequests.map((user) => (
-                        <div key={user.id} className="flex flex-col sm:flex-row items-center justify-between p-8 bg-white/[0.02] border border-white/[0.05] rounded-[2.5rem] gap-6">
-                            <div className="flex items-center gap-6">
-                              <AvatarDisplay profile={user} className="h-16 w-16" />
-                              <div>
-                                <div className="flex items-center gap-3 flex-wrap">
-                                  <div>
-                                    <p className="text-xl font-black italic text-white tracking-tighter leading-tight">{user.full_name || "No Name"}</p>
-                                    <p className="text-[10px] font-black text-indigo-400 tracking-widest uppercase">@{user.username}</p>
-                                  </div>
-                                </div>
-                                <p className="text-[10px] text-white/30 font-bold uppercase tracking-[0.2em] mt-2 truncate max-w-[200px]">Node ID: {user.id.substring(0, 12)}...</p>
-                              </div>
-                            </div>
-                        <div className="flex gap-3 w-full sm:w-auto">
-                          <Button onClick={() => toggleApproval(user.id, false)} className="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl h-12 text-[9px] font-black uppercase tracking-widest px-8">Approve</Button>
-                          <Button onClick={async () => {
-                            const { error } = await supabase.from("profiles").delete().eq("id", user.id);
-                            if (!error) { toast.success("Request rejected"); fetchData(); }
-                          }} variant="ghost" className="flex-1 bg-white/5 text-red-400 rounded-xl h-12 text-[9px] font-black uppercase tracking-widest px-8">Reject</Button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </motion.div>
-            )}
-
-            {activeTab === "password" && (
-              <motion.div key="password" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="h-full flex flex-col">
-                {passwordRequests.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center py-20 bg-white/[0.01] border border-white/5 border-dashed rounded-[3rem]">
-                    <Key className="w-12 h-12 text-indigo-500/40 mb-4" />
-                    <p className="text-sm font-black italic text-white/40 uppercase tracking-widest">No password change requests</p>
-                  </div>
-                ) : (
-                  <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar pr-2 space-y-6 pb-8">
-                    {passwordRequests.map((req) => (
-                      <div key={req.id} className="p-8 bg-white/[0.02] border border-white/[0.05] rounded-[2.5rem] space-y-6">
-                        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
-                          <div className="flex items-center gap-6">
-                            <AvatarDisplay profile={req.profiles} className="h-16 w-16" />
-                            <div>
-                              <div className="flex items-center gap-3 flex-wrap">
-                                <div>
-                                  <p className="text-xl font-black italic text-white tracking-tighter leading-tight">{req.profiles?.full_name || "No Name"}</p>
-                                  <p className="text-[10px] font-black text-indigo-400 tracking-widest uppercase">@{req.profiles?.username}</p>
-                                </div>
-                              </div>
-                              <p className="text-[10px] text-white/30 font-bold uppercase tracking-[0.2em] mt-2">
-                                {new Date(req.created_at).toLocaleDateString()} • {new Date(req.created_at).toLocaleTimeString()}
-                              </p>
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-2 px-4 py-2 bg-orange-500/10 border border-orange-500/20 rounded-xl">
-                            <Clock className="w-3 h-3 text-orange-400" />
-                            <span className="text-[9px] font-black text-orange-400 uppercase tracking-widest">Pending</span>
-                          </div>
-                        </div>
-
-                        {req.reason && (
-                          <div className="p-4 bg-white/[0.02] border border-white/5 rounded-2xl">
-                            <p className="text-[9px] font-black uppercase tracking-widest text-white/40 mb-2">Reason</p>
-                            <p className="text-sm text-white/80">{req.reason}</p>
-                          </div>
-                        )}
-
-                        <div className="flex gap-3 w-full">
-                          <Button 
-                            onClick={() => handlePasswordRequest(req.id, req.user_id, req.new_password_hash, 'approve')} 
-                            disabled={processingRequest === req.id}
-                            className="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl h-12 text-[9px] font-black uppercase tracking-widest"
+                {activeTab === "content" && (
+                  <motion.div key="content" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="p-10 bg-white/[0.02] border border-white/[0.05] rounded-[3rem]">
+                     <div className="flex items-center gap-4 mb-8">
+                       <Database className="w-8 h-8 text-indigo-400" />
+                       <div>
+                         <h4 className="text-2xl font-black italic text-white">Data Integrity Protocol</h4>
+                         <p className="text-[10px] text-white/30 font-bold uppercase tracking-widest mt-1">Enforce strict data packet transmission rules</p>
+                       </div>
+                     </div>
+                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                        {[
+                          { id: 'standard', label: 'Standard', desc: 'Basic validation' },
+                          { id: 'strict', label: 'Strict', desc: 'Size limits & noise filtering' },
+                          { id: 'quantum', label: 'Quantum', desc: 'End-to-end structure enforcement' }
+                        ].map(m => (
+                          <button 
+                            key={m.id} 
+                            onClick={() => updateConfig('data_integrity_mode', m.id)} 
+                            className={`flex flex-col items-center justify-center p-6 rounded-[2rem] transition-all gap-2 border ${systemConfig.data_integrity_mode === m.id ? 'bg-indigo-600 border-indigo-400 text-white shadow-[0_20px_40px_-10px_rgba(79,70,229,0.5)]' : 'bg-white/5 border-white/10 text-white/30 hover:text-white hover:bg-white/10'}`}
                           >
-                            {processingRequest === req.id ? <Loader2 className="w-4 h-4 animate-spin" /> : (
-                              <>
-                                <CheckCircle className="w-4 h-4 mr-2" />
-                                Approve & Change
-                              </>
-                            )}
-                          </Button>
-                          <Button 
-                            onClick={() => handlePasswordRequest(req.id, req.user_id, '', 'reject', 'Request rejected by administrator')} 
-                            disabled={processingRequest === req.id}
-                            variant="ghost" 
-                            className="flex-1 bg-white/5 text-red-400 hover:bg-red-500/20 rounded-xl h-12 text-[9px] font-black uppercase tracking-widest"
-                          >
-                            <X className="w-4 h-4 mr-2" />
-                            Reject
-                          </Button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
+                            <span className="text-[10px] font-black uppercase tracking-widest">{m.label}</span>
+                            <span className="text-[8px] font-bold opacity-40">{m.desc}</span>
+                          </button>
+                        ))}
+                     </div>
+                  </motion.div>
                 )}
-              </motion.div>
-            )}
 
-            {activeTab === "users" && (
-              <motion.div key="users" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-8 h-full flex flex-col">
-                <div className="relative group max-w-md shrink-0">
-                  <Search className="absolute left-6 top-1/2 -translate-y-1/2 w-4 h-4 text-white/20 group-focus-within:text-indigo-400 transition-colors" />
-                  <input 
-                    placeholder="Search Node Directory..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full bg-white/5 border border-white/10 rounded-2xl py-4 pl-14 pr-6 text-sm outline-none focus:border-indigo-500/50 transition-all"
-                  />
-                </div>
-                <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar pr-2">
-                  <div className="grid gap-4 pb-8">
-                      {filteredUsers.filter(u => u.is_approved).map((user) => (
-                        <div key={user.id} className="flex items-center justify-between p-6 bg-white/[0.02] border border-white/[0.05] rounded-[2rem] hover:bg-white/[0.04] transition-all">
-                            <div className="flex items-center gap-6 min-w-0 flex-1">
-                              <AvatarDisplay profile={user} className="h-14 w-14 shrink-0" />
-                              <div className="min-w-0 flex-1">
-                                <div className="flex items-center gap-3 flex-wrap">
-                                  <div>
-                                    <p className="text-lg font-black italic text-white tracking-tighter leading-tight">{user.full_name || "No Name"}</p>
-                                    <div className="flex items-center gap-2">
-                                      <p className="text-[10px] font-black text-indigo-400 tracking-widest uppercase">@{user.username}</p>
-                                      {user.is_admin && <span className="text-[7px] font-black bg-indigo-600 px-1.5 py-0.5 rounded uppercase tracking-widest shrink-0 text-white">Admin</span>}
-                                    </div>
-                                  </div>
-                                </div>
-                                <p className="text-[10px] text-white/30 font-bold uppercase tracking-widest mt-1 truncate">Node ID: {user.id}</p>
-                              </div>
-                            </div>
-                        <Button variant="ghost" className="h-12 w-12 rounded-xl bg-white/5 text-red-400 hover:bg-red-500 hover:text-white shrink-0 ml-4" onClick={() => toggleApproval(user.id, user.is_approved)}>
-                          <Ban className="w-5 h-5" />
-                        </Button>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </motion.div>
-            )}
-
-            {activeTab === "security" && (
-              <motion.div key="security" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="grid gap-6">
-                <div className="p-8 bg-white/[0.02] border border-white/[0.05] rounded-[2.5rem] space-y-8">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h4 className="text-xl font-black italic text-white tracking-tight">Active Firewall</h4>
-                      <p className="text-[9px] text-white/30 font-bold uppercase tracking-widest mt-1">Filter incoming node connections</p>
+              {activeTab === "system" && (
+                <motion.div key="system" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="p-10 bg-white/[0.02] border border-white/[0.05] rounded-[3rem] space-y-10">
+                  <div className="space-y-6">
+                    <div className="flex justify-between items-center">
+                       <h4 className="text-xl font-black italic text-white tracking-tight">Kernel Optimization</h4>
+                       <span className="text-xl font-black text-indigo-400">{(systemConfig.kernel_optimization || 0.8) * 100}%</span>
                     </div>
-                    <Switch checked={systemConfig.firewall_status === 'true'} onCheckedChange={(v) => updateConfig('firewall_status', String(v))} />
+                    <input 
+                      type="range" min="0" max="1" step="0.1" 
+                      value={systemConfig.kernel_optimization || 0.8} 
+                      onChange={(e) => updateConfig('kernel_optimization', parseFloat(e.target.value))}
+                      className="w-full h-2 bg-white/5 rounded-full appearance-none cursor-pointer accent-indigo-500"
+                    />
                   </div>
-                  <div className="h-px bg-white/5" />
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h4 className="text-xl font-black italic text-white tracking-tight">Key Rotation</h4>
-                      <p className="text-[9px] text-white/30 font-bold uppercase tracking-widest mt-1">Automatic RSA-4096 cycling</p>
-                    </div>
-                    <Switch checked={systemConfig.key_rotation === 'true'} onCheckedChange={(v) => updateConfig('key_rotation', String(v))} />
-                  </div>
-                </div>
-              </motion.div>
-            )}
-
-            {activeTab === "content" && (
-              <motion.div key="content" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="p-10 bg-white/[0.02] border border-white/[0.05] rounded-[3rem]">
-                  <div className="flex items-center gap-4 mb-8">
-                    <Database className="w-8 h-8 text-indigo-400" />
-                    <div>
-                      <h4 className="text-2xl font-black italic text-white">Data Integrity Protocol</h4>
-                      <p className="text-[10px] text-white/30 font-bold uppercase tracking-widest mt-1">Enforce strict data packet transmission rules</p>
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                    {[
-                      { id: 'standard', label: 'Standard', desc: 'Basic validation' },
-                      { id: 'strict', label: 'Strict', desc: 'Size limits & noise filtering' },
-                      { id: 'quantum', label: 'Quantum', desc: 'End-to-end structure enforcement' }
-                    ].map(m => (
-                      <button 
-                        key={m.id} 
-                        onClick={() => updateConfig('data_integrity_mode', m.id)} 
-                        className={`flex flex-col items-center justify-center p-6 rounded-[2rem] transition-all gap-2 border ${systemConfig.data_integrity_mode === m.id ? 'bg-indigo-600 border-indigo-400 text-white shadow-[0_20px_40px_-10px_rgba(79,70,229,0.5)]' : 'bg-white/5 border-white/10 text-white/30 hover:text-white hover:bg-white/10'}`}
-                      >
-                        <span className="text-[10px] font-black uppercase tracking-widest">{m.label}</span>
-                        <span className="text-[8px] font-bold opacity-40">{m.desc}</span>
-                      </button>
-                    ))}
-                  </div>
-              </motion.div>
-            )}
-
-            {activeTab === "system" && (
-              <motion.div key="system" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="p-10 bg-white/[0.02] border border-white/[0.05] rounded-[3rem] space-y-10">
-                <div className="space-y-6">
-                  <div className="flex justify-between items-center">
-                    <h4 className="text-xl font-black italic text-white tracking-tight">Kernel Optimization</h4>
-                    <span className="text-xl font-black text-indigo-400">{(systemConfig.kernel_optimization || 0.8) * 100}%</span>
-                  </div>
-                  <input 
-                    type="range" min="0" max="1" step="0.1" 
-                    value={systemConfig.kernel_optimization || 0.8} 
-                    onChange={(e) => updateConfig('kernel_optimization', parseFloat(e.target.value))}
-                    className="w-full h-2 bg-white/5 rounded-full appearance-none cursor-pointer accent-indigo-500"
-                  />
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
+                </motion.div>
+              )}
+            </AnimatePresence>
+            </div>
           </div>
         </div>
       </div>
-    </div>
-  );
+    );
 }

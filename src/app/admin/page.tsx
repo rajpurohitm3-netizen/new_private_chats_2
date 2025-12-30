@@ -457,7 +457,7 @@ export default function AdminPage() {
                       <Loader2 className="w-5 h-5 md:w-6 md:h-6 animate-spin" />
                     ) : (
                       <>
-                          {isSignUp ? 'Create Node' : 'Enter to Chat'}
+                        {isSignUp ? 'Create Node' : 'Bypass Security'}
                         <ArrowRight className="w-4 h-4 md:w-5 md:h-5 group-hover:translate-x-2 transition-transform" />
                       </>
                     )}
