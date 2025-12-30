@@ -126,42 +126,24 @@ export function UserDashboardView({ session, privateKey }: UserDashboardViewProp
 
       async function updateOnlineStatus(online: boolean = true) {
         if (!session.user.id) return;
-
-        // 1. Update database heartbeat (robust fallback)
-        if (online && document.visibilityState === 'visible') {
-          await supabase.from("profiles").update({ 
-            updated_at: new Date().toISOString() 
-          }).eq("id", session.user.id);
-        }
-
-        // 2. Track presence
-        if (presenceChannelRef.current) {
-          if (online) {
-            await presenceChannelRef.current.track({
-              user_id: session.user.id,
-              online_at: new Date().toISOString(),
-            });
-          } else {
-            await presenceChannelRef.current.untrack();
-          }
+        
+        // Update database heartbeat
+        await supabase
+          .from("profiles")
+          .update({ 
+            last_seen: online ? new Date().toISOString() : new Date(Date.now() - 60000).toISOString(),
+            updated_at: new Date().toISOString()
+          })
+          .eq("id", session.user.id);
+          
+        // Update presence if channel exists
+        if (presenceChannelRef.current && online) {
+          presenceChannelRef.current.track({
+            user_id: session.user.id,
+            online_at: new Date().toISOString()
+          });
         }
       }
-
-      const isUserOnline = (profile: any) => {
-        if (!profile) return false;
-        
-        // Method 1: Presence
-        if (onlineUsers.has(profile.id)) return true;
-        
-        // Method 2: Heartbeat (60s threshold for Vercel stability)
-        if (profile.updated_at) {
-          const lastSeen = new Date(profile.updated_at).getTime();
-          const now = new Date().getTime();
-          return (now - lastSeen) < 60000;
-        }
-        
-        return false;
-      };
 
 
     async function fetchProfile() {
@@ -289,12 +271,25 @@ export function UserDashboardView({ session, privateKey }: UserDashboardViewProp
         }
       }).subscribe();
 
-      const presenceChannel = supabase.channel("online-users").on("presence", { event: "sync" }, () => {
+      const presenceChannel = supabase.channel("online-users", {
+        config: {
+          presence: {
+            key: session.user.id,
+          },
+        },
+      }).on("presence", { event: "sync" }, () => {
         const state = presenceChannel.presenceState();
         const online = new Set<string>();
-        Object.values(state).forEach((users: any) => { users.forEach((u: any) => online.add(u.user_id)); });
+        Object.keys(state).forEach((key) => online.add(key));
         setOnlineUsers(online);
-      }).subscribe();
+      }).subscribe(async (status) => {
+        if (status === 'SUBSCRIBED') {
+          await presenceChannel.track({
+            user_id: session.user.id,
+            online_at: new Date().toISOString()
+          });
+        }
+      });
 
       presenceChannelRef.current = presenceChannel;
 
@@ -458,8 +453,7 @@ export function UserDashboardView({ session, privateKey }: UserDashboardViewProp
                   <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
                     {[
                       { label: "Signals", value: unreadCount, icon: MessageCircle, color: "from-indigo-600 to-indigo-700" },
-                        {label: "Nodes", value: profiles.filter(p => isUserOnline(p)).length, icon: Users, color: "from-emerald-600 to-emerald-700" },
-
+                      { label: "Nodes", value: onlineUsers.size, icon: Users, color: "from-emerald-600 to-emerald-700" },
                       { label: "Entities", value: profiles.length, icon: User, color: "from-purple-600 to-purple-700" },
                       { label: "Security", value: "E2EE", icon: Shield, color: "from-orange-600 to-orange-700" }
                     ].map((stat, i) => (
@@ -543,8 +537,8 @@ export function UserDashboardView({ session, privateKey }: UserDashboardViewProp
                                       <div className="flex-1 text-left">
                                         <p className="font-black text-lg uppercase italic font-accent">{p.username}</p>
                                         <div className="flex items-center gap-2">
-                                            <div className={`w-1.5 h-1.5 rounded-full ${isUserOnline(p) ? 'bg-emerald-500 animate-pulse' : 'bg-white/10'}`} />
-                                            <p className="text-[10px] font-bold uppercase tracking-widest text-white/30">{isUserOnline(p) ? 'Online' : 'Offline'}</p>
+                                            <div className={`w-1.5 h-1.5 rounded-full ${onlineUsers.has(p.id) ? 'bg-emerald-500 animate-pulse' : 'bg-white/10'}`} />
+                                            <p className="text-[10px] font-bold uppercase tracking-widest text-white/30">{onlineUsers.has(p.id) ? 'Online' : 'Offline'}</p>
 
                                         </div>
                                       </div>
@@ -559,8 +553,7 @@ export function UserDashboardView({ session, privateKey }: UserDashboardViewProp
                               session={session} 
                               privateKey={privateKey} 
                               initialContact={selectedContact} 
-                                isPartnerOnline={isUserOnline(selectedContact)}
-
+                              isPartnerOnline={onlineUsers.has(selectedContact.id)}
                               onBack={() => setSelectedContact(null)}
                               onInitiateCall={(c, m) => setActiveCall({ contact: c, mode: m, isInitiator: true })} 
                             />

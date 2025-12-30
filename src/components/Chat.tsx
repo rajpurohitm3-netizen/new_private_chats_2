@@ -201,81 +201,74 @@ export function Chat({ session, privateKey, initialContact, isPartnerOnline, onB
     setLongPressedMessage(null);
   }
 
-    useEffect(() => {
-      if (!initialContact || !session.user) return;
+  useEffect(() => {
+    if (!initialContact || !session.user) return;
 
-      const userIds = [session.user.id, initialContact.id].sort();
-      const channelName = `presence-chat-${userIds[0]}-${userIds[1]}`;
+    const userIds = [session.user.id, initialContact.id].sort();
+    const channelName = `presence-chat-${userIds[0]}-${userIds[1]}`;
 
-      const channel = supabase.channel(channelName, {
-        config: {
-          presence: {
-            key: session.user.id,
-          },
+    const channel = supabase.channel(channelName, {
+      config: {
+        presence: {
+          key: session.user.id,
         },
-      });
+      },
+    });
 
-      const trackPresence = async () => {
-        if (channel && channel.state === 'joined') {
+    channel
+      .on('presence', { event: 'sync' }, () => {
+        const state = channel.presenceState();
+        const partnerState: any = state[initialContact.id];
+        
+        if (partnerState && partnerState.length > 0) {
+          const latest = partnerState[partnerState.length - 1];
+          setPartnerPresence({
+            isOnline: true,
+            isInChat: latest.current_chat_id === session.user.id,
+            isTyping: latest.is_typing === true,
+          });
+        } else {
+          setPartnerPresence({ isOnline: false, isInChat: false, isTyping: false });
+        }
+      })
+      .on('presence', { event: 'join' }, ({ key, newPresences }) => {
+        if (key === initialContact.id) {
+          const latest = newPresences[newPresences.length - 1];
+          setPartnerPresence({
+            isOnline: true,
+            isInChat: latest.current_chat_id === session.user.id,
+            isTyping: latest.is_typing === true,
+          });
+        }
+      })
+      .on('presence', { event: 'leave' }, ({ key }) => {
+        if (key === initialContact.id) {
+          setPartnerPresence({ isOnline: false, isInChat: false, isTyping: false });
+        }
+      })
+      .subscribe(async (status) => {
+        if (status === 'SUBSCRIBED') {
           await channel.track({
             online_at: new Date().toISOString(),
             current_chat_id: initialContact.id,
             is_typing: isTyping
           });
         }
-      };
+      });
 
-      channel
-        .on('presence', { event: 'sync' }, () => {
-          const state = channel.presenceState();
-          const partnerState: any = state[initialContact.id];
-          
-          if (partnerState && partnerState.length > 0) {
-            const latest = partnerState[partnerState.length - 1];
-            setPartnerPresence({
-              isOnline: true,
-              isInChat: latest.current_chat_id === session.user.id,
-              isTyping: latest.is_typing === true,
-            });
-          } else {
-            setPartnerPresence({ isOnline: false, isInChat: false, isTyping: false });
-          }
-        })
-        .on('presence', { event: 'join' }, ({ key, newPresences }) => {
-          if (key === initialContact.id) {
-            const latest = newPresences[newPresences.length - 1];
-            setPartnerPresence({
-              isOnline: true,
-              isInChat: latest.current_chat_id === session.user.id,
-              isTyping: latest.is_typing === true,
-            });
-          }
-        })
-        .on('presence', { event: 'leave' }, ({ key }) => {
-          if (key === initialContact.id) {
-            setPartnerPresence({ isOnline: false, isInChat: false, isTyping: false });
-          }
-        })
-        .subscribe(async (status) => {
-          if (status === 'SUBSCRIBED') {
-            await trackPresence();
-          }
-        });
+    // Update tracking when typing state changes
+    if (isTyping) {
+      channel.track({
+        online_at: new Date().toISOString(),
+        current_chat_id: initialContact.id,
+        is_typing: true
+      });
+    }
 
-      const handleVisibilityChange = () => {
-        if (document.visibilityState === 'visible') {
-          trackPresence();
-        }
-      };
-
-      document.addEventListener('visibilitychange', handleVisibilityChange);
-
-      return () => {
-        document.removeEventListener('visibilitychange', handleVisibilityChange);
-        channel.unsubscribe();
-      };
-    }, [initialContact, session.user, isTyping]);
-
+    return () => {
+      channel.unsubscribe();
+    };
+  }, [initialContact, session.user, isTyping]);
 
   useEffect(() => {
     const timeout = setTimeout(() => {
@@ -598,13 +591,16 @@ export function Chat({ session, privateKey, initialContact, isPartnerOnline, onB
   if (!initialContact) return null;
 
   return (
-    <div className="flex flex-col h-full bg-[#030303] relative overflow-hidden select-none" onContextMenu={(e) => e.preventDefault()}>
+    <div 
+      className="flex flex-col h-full bg-[#030303] relative overflow-hidden select-none" 
+      onContextMenu={(e) => e.preventDefault()}
+    >
       <style jsx global>{`
-        @media print { body { display: none; } }
+        @media print { body { display: none !important; } }
         .no-screenshot {
-          -webkit-touch-callout: none;
-          -webkit-user-select: none;
-          user-select: none;
+          -webkit-touch-callout: none !important;
+          -webkit-user-select: none !important;
+          user-select: none !important;
         }
       `}</style>
 
@@ -665,163 +661,162 @@ export function Chat({ session, privateKey, initialContact, isPartnerOnline, onB
       </div>
     </header>
 
-      {/* Messages */}
-      <div className="flex-1 overflow-y-auto custom-scrollbar p-6 space-y-6 no-screenshot relative">
-        {loading ? (
-          <div className="flex items-center justify-center h-full">
-            <div className="w-8 h-8 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin" />
-          </div>
-        ) : messages.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-full opacity-20">
-            <ShieldCheck className="w-12 h-12 mb-4" />
-            <p className="text-[10px] font-black uppercase tracking-[0.4em]">End-to-End Encrypted</p>
-          </div>
-        ) : (
-          messages.map((msg, i) => {
-            const isMe = msg.sender_id === session.user.id;
-            const reactions = msg.reactions || {};
-            const reactionCounts = Object.values(reactions).reduce((acc: any, curr: any) => {
-              acc[curr] = (acc[curr] || 0) + 1;
-              return acc;
-            }, {});
-
-              return (
-                <motion.div 
-                  key={msg.id}
-                  initial={{ opacity: 0, x: isMe ? 20 : -20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  className={`flex ${isMe ? "justify-end" : "justify-start"} touch-none`}
-                  onContextMenu={(e) => {
-                    e.preventDefault();
-                    setLongPressedMessage(msg);
-                  }}
-                  onTouchStart={() => handleTouchStart(msg)}
-                  onTouchEnd={handleTouchEnd}
-                  onTouchMove={handleTouchMove}
-                  onMouseDown={() => handleTouchStart(msg)}
-                  onMouseUp={handleTouchEnd}
-                  onMouseLeave={handleTouchEnd}
-                >
-                <div className={`max-w-[80%] flex flex-col ${isMe ? "items-end" : "items-start"} relative`}>
-                  {msg.media_type === 'snapshot' ? (
-                    <button 
-                      onClick={() => openSnapshot(msg)}
-                      className={`group relative p-4 rounded-[2rem] border transition-all ${
-                        msg.view_count >= 2 && !isMe 
-                          ? "bg-zinc-900/50 border-white/5 opacity-50 cursor-not-allowed" 
-                          : "bg-purple-600/10 border-purple-500/30 hover:bg-purple-600/20"
-                      }`}
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-2xl bg-purple-500/20 flex items-center justify-center">
-                          {msg.view_count >= 2 && !isMe ? <EyeOff className="w-5 h-5 text-purple-400" /> : <Camera className="w-5 h-5 text-purple-400" />}
-                        </div>
-                        <div className="text-left">
-                            <p className="text-[10px] font-black uppercase tracking-widest text-white">Snapshot</p>
-                            <p className="text-[8px] font-bold text-purple-400 uppercase tracking-tighter">
-                              {msg.view_count >= 2 && !isMe ? "Purged" : `${msg.is_saved ? 'Saved' : 'Viewable'}`}
-                            </p>
-                          </div>
-                        </div>
-                      </button>
-                  ) : msg.media_type === 'image' ? (
-                      <div className="group relative rounded-[2rem] overflow-hidden border border-white/10 shadow-2xl">
-                        <img src={msg.media_url} alt="" className="max-w-full max-h-80 object-cover" />
-                      </div>
-                    ) : msg.media_type === 'location' ? (
-                      <div className={`p-5 rounded-[2rem] border transition-all ${
-                        isMe ? "bg-emerald-600 border-emerald-500 shadow-lg shadow-emerald-600/20" : "bg-white/[0.03] border-white/5"
-                      }`}>
-                        <div className="flex items-center gap-4">
-                          <MapPin className="w-6 h-6 text-white animate-pulse" />
-                          <div>
-                            <p className="text-[10px] font-black uppercase tracking-widest text-white">Live Satellite Link</p>
-                            <Button variant="link" onClick={() => window.open(msg.media_url, '_blank')} className="text-white font-bold p-0 h-auto underline text-[10px] uppercase tracking-tighter">Open Satellite View</Button>
-                          </div>
-                        </div>
-                      </div>
-                    ) : (
-                          <div className={`group/msg relative p-5 rounded-[2rem] text-sm font-medium leading-relaxed transition-all ${
-                          msg.is_saved 
-                            ? "bg-[#FCFCFA]/80 backdrop-blur-md text-amber-900 border border-amber-400/50 shadow-[0_10px_20px_rgba(251,191,36,0.1)]" 
-                            : isMe 
-                            ? "bg-indigo-600 text-white shadow-xl shadow-indigo-600/10" 
-                            : "bg-white/[0.03] border border-white/5 text-white/90"
-                        }`}>
-                          {msg.encrypted_content}
-                          {msg.is_saved && <Star className="absolute -top-2 -right-2 w-5 h-5 text-amber-500 fill-amber-500" />}
-                        </div>
-                    )}
-
-                    {/* Reactions Display */}
-                    {Object.keys(reactionCounts).length > 0 && (
-                      <div className={`flex gap-1 mt-1 ${isMe ? 'justify-end' : 'justify-start'}`}>
-                        {Object.entries(reactionCounts).map(([reaction, count]: [any, any]) => (
-                          <div key={reaction} className="bg-white/10 border border-white/5 px-2 py-0.5 rounded-full flex items-center gap-1">
-                            <span className="text-xs">{reaction}</span>
-                            <span className="text-[8px] font-black text-white/40">{count}</span>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-
-                      <div className="flex items-center gap-2 mt-2 px-2">
-                        <span className="text-[7px] font-black uppercase tracking-widest text-white/10">
-                          {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                        </span>
-                            {isMe && (
-                              <div className="flex items-center">
-                                {msg.is_viewed ? (
-                                  <CheckCheck className="w-2.5 h-2.5 text-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.5)]" />
-                                ) : msg.is_delivered ? (
-                                  <CheckCheck className="w-2.5 h-2.5 text-white/90" />
-                                ) : (
-                                  <Check className="w-2.5 h-2.5 text-zinc-600" />
-                                )}
-                              </div>
-                            )}
-                      </div>
-                  </div>
-                </motion.div>
-              );
-            })
-        )}
-
-        {/* Indicators container - Bottom Left */}
-        <div className="sticky bottom-0 left-0 flex flex-col gap-2 p-2 pointer-events-none z-20">
-          <AnimatePresence>
-            {partnerPresence.isInChat && (
-              <motion.div 
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -20 }}
-                className="flex items-center gap-2 px-3 py-1.5 bg-emerald-500/10 border border-emerald-500/20 rounded-full backdrop-blur-md"
-              >
-                <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                <span className="text-[8px] font-black uppercase tracking-widest text-emerald-400">Partner in chat</span>
-              </motion.div>
-            )}
-            {partnerPresence.isTyping && (
-              <motion.div 
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -20 }}
-                className="flex items-center gap-2 px-3 py-1.5 bg-indigo-500/10 border border-indigo-500/20 rounded-full backdrop-blur-md"
-              >
-                <div className="flex gap-1">
-                  <span className="w-1 h-1 bg-indigo-400 rounded-full animate-bounce [animation-delay:-0.3s]" />
-                  <span className="w-1 h-1 bg-indigo-400 rounded-full animate-bounce [animation-delay:-0.15s]" />
-                  <span className="w-1 h-1 bg-indigo-400 rounded-full animate-bounce" />
-                </div>
-                <span className="text-[8px] font-black uppercase tracking-widest text-indigo-400">Typing packet...</span>
-              </motion.div>
-            )}
-          </AnimatePresence>
+    {/* Messages */}
+    <div className="flex-1 overflow-y-auto custom-scrollbar p-6 space-y-6 no-screenshot">
+      {loading ? (
+        <div className="flex items-center justify-center h-full">
+          <div className="w-8 h-8 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin" />
         </div>
+      ) : messages.length === 0 ? (
+        <div className="flex flex-col items-center justify-center h-full opacity-20">
+          <ShieldCheck className="w-12 h-12 mb-4" />
+          <p className="text-[10px] font-black uppercase tracking-[0.4em]">End-to-End Encrypted</p>
+        </div>
+      ) : (
+        messages.map((msg, i) => {
+          const isMe = msg.sender_id === session.user.id;
+          const reactions = msg.reactions || {};
+          const reactionCounts = Object.values(reactions).reduce((acc: any, curr: any) => {
+            acc[curr] = (acc[curr] || 0) + 1;
+            return acc;
+          }, {});
+
+            return (
+              <motion.div 
+                key={msg.id}
+                initial={{ opacity: 0, x: isMe ? 20 : -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                className={`flex ${isMe ? "justify-end" : "justify-start"} touch-none`}
+                onContextMenu={(e) => {
+                  e.preventDefault();
+                  setLongPressedMessage(msg);
+                }}
+                onTouchStart={() => handleTouchStart(msg)}
+                onTouchEnd={handleTouchEnd}
+                onTouchMove={handleTouchMove}
+                onMouseDown={() => handleTouchStart(msg)}
+                onMouseUp={handleTouchEnd}
+                onMouseLeave={handleTouchEnd}
+              >
+              <div className={`max-w-[80%] flex flex-col ${isMe ? "items-end" : "items-start"} relative`}>
+                {msg.media_type === 'snapshot' ? (
+                  <button 
+                    onClick={() => openSnapshot(msg)}
+                    className={`group relative p-4 rounded-[2rem] border transition-all ${
+                      msg.view_count >= 2 && !isMe 
+                        ? "bg-zinc-900/50 border-white/5 opacity-50 cursor-not-allowed" 
+                        : "bg-purple-600/10 border-purple-500/30 hover:bg-purple-600/20"
+                    }`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-2xl bg-purple-500/20 flex items-center justify-center">
+                        {msg.view_count >= 2 && !isMe ? <EyeOff className="w-5 h-5 text-purple-400" /> : <Camera className="w-5 h-5 text-purple-400" />}
+                      </div>
+                      <div className="text-left">
+                          <p className="text-[10px] font-black uppercase tracking-widest text-white">Snapshot</p>
+                          <p className="text-[8px] font-bold text-purple-400 uppercase tracking-tighter">
+                            {msg.view_count >= 2 && !isMe ? "Purged" : `${msg.is_saved ? 'Saved' : 'Viewable'}`}
+                          </p>
+                        </div>
+                      </div>
+                    </button>
+                ) : msg.media_type === 'image' ? (
+                    <div className="group relative rounded-[2rem] overflow-hidden border border-white/10 shadow-2xl">
+                      <img src={msg.media_url} alt="" className="max-w-full max-h-80 object-cover" />
+                    </div>
+                  ) : msg.media_type === 'location' ? (
+                    <div className={`p-5 rounded-[2rem] border transition-all ${
+                      isMe ? "bg-emerald-600 border-emerald-500 shadow-lg shadow-emerald-600/20" : "bg-white/[0.03] border-white/5"
+                    }`}>
+                      <div className="flex items-center gap-4">
+                        <MapPin className="w-6 h-6 text-white animate-pulse" />
+                        <div>
+                          <p className="text-[10px] font-black uppercase tracking-widest text-white">Live Satellite Link</p>
+                          <Button variant="link" onClick={() => window.open(msg.media_url, '_blank')} className="text-white font-bold p-0 h-auto underline text-[10px] uppercase tracking-tighter">Open Satellite View</Button>
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                        <div className={`group/msg relative p-5 rounded-[2rem] text-sm font-medium leading-relaxed transition-all ${
+                        msg.is_saved 
+                          ? "bg-[#FCFCFA]/80 backdrop-blur-md text-amber-900 border border-amber-400/50 shadow-[0_10px_20px_rgba(251,191,36,0.1)]" 
+                          : isMe 
+                          ? "bg-indigo-600 text-white shadow-xl shadow-indigo-600/10" 
+                          : "bg-white/[0.03] border border-white/5 text-white/90"
+                      }`}>
+                        {msg.encrypted_content}
+                        {msg.is_saved && <Star className="absolute -top-2 -right-2 w-5 h-5 text-amber-500 fill-amber-500" />}
+                      </div>
+                  )}
+
+                  {/* Reactions Display */}
+                  {Object.keys(reactionCounts).length > 0 && (
+                    <div className={`flex gap-1 mt-1 ${isMe ? 'justify-end' : 'justify-start'}`}>
+                      {Object.entries(reactionCounts).map(([reaction, count]: [any, any]) => (
+                        <div key={reaction} className="bg-white/10 border border-white/5 px-2 py-0.5 rounded-full flex items-center gap-1">
+                          <span className="text-xs">{reaction}</span>
+                          <span className="text-[8px] font-black text-white/40">{count}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                    <div className="flex items-center gap-2 mt-2 px-2">
+                      <span className="text-[7px] font-black uppercase tracking-widest text-white/10">
+                        {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      </span>
+                          {isMe && (
+                            <div className="flex items-center">
+                              {msg.is_viewed ? (
+                                <CheckCheck className="w-2.5 h-2.5 text-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.5)]" />
+                              ) : msg.is_delivered ? (
+                                <CheckCheck className="w-2.5 h-2.5 text-white/90" />
+                              ) : (
+                                <Check className="w-2.5 h-2.5 text-zinc-600" />
+                              )}
+                            </div>
+                          )}
+                    </div>
+                </div>
+              </motion.div>
+            );
+          })
+        )}
 
         <div ref={messagesEndRef} />
       </div>
 
+      {/* Realtime Indicators (Bottom Left) */}
+      <div className="absolute bottom-[100px] left-6 z-40 pointer-events-none">
+        <AnimatePresence>
+          {partnerPresence.isInChat && (
+            <motion.div 
+              initial={{ opacity: 0, x: -10 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -10 }}
+              className="flex items-center gap-2 mb-2"
+            >
+              <div className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.5)] animate-pulse" />
+              <span className="text-[8px] font-black uppercase tracking-[0.2em] text-emerald-400">In Chat</span>
+            </motion.div>
+          )}
+          {partnerPresence.isTyping && (
+            <motion.div 
+              initial={{ opacity: 0, x: -10 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -10 }}
+              className="flex items-center gap-2"
+            >
+              <div className="flex gap-1">
+                <motion.div animate={{ opacity: [0.2, 1, 0.2] }} transition={{ repeat: Infinity, duration: 1, delay: 0 }} className="w-1 h-1 rounded-full bg-indigo-500" />
+                <motion.div animate={{ opacity: [0.2, 1, 0.2] }} transition={{ repeat: Infinity, duration: 1, delay: 0.2 }} className="w-1 h-1 rounded-full bg-indigo-500" />
+                <motion.div animate={{ opacity: [0.2, 1, 0.2] }} transition={{ repeat: Infinity, duration: 1, delay: 0.4 }} className="w-1 h-1 rounded-full bg-indigo-500" />
+              </div>
+              <span className="text-[8px] font-black uppercase tracking-[0.2em] text-indigo-400">Typing intelligence...</span>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
 
       {/* Input Area */}
       <footer className="p-6 bg-black/40 backdrop-blur-3xl border-t border-white/5 relative z-30 shrink-0">
