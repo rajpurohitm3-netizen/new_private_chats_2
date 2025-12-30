@@ -201,65 +201,81 @@ export function Chat({ session, privateKey, initialContact, isPartnerOnline, onB
     setLongPressedMessage(null);
   }
 
-  useEffect(() => {
-    if (!initialContact || !session.user) return;
+    const channelRef = useRef<any>(null);
 
-    const userIds = [session.user.id, initialContact.id].sort();
-    const channelName = `presence-chat-${userIds[0]}-${userIds[1]}`;
+    useEffect(() => {
+      if (!initialContact || !session.user) return;
 
-    const channel = supabase.channel(channelName, {
-      config: {
-        presence: {
-          key: session.user.id,
+      const userIds = [session.user.id, initialContact.id].sort();
+      const channelName = `presence-chat-${userIds[0]}-${userIds[1]}`;
+
+      const channel = supabase.channel(channelName, {
+        config: {
+          presence: {
+            key: session.user.id,
+          },
         },
-      },
-    });
-
-    channel
-      .on('presence', { event: 'sync' }, () => {
-        const state = channel.presenceState();
-        const partnerState: any = state[initialContact.id];
-        
-        if (partnerState && partnerState.length > 0) {
-          const latest = partnerState[partnerState.length - 1];
-          setPartnerPresence({
-            isOnline: true,
-            isInChat: latest.current_chat_id === session.user.id,
-            isTyping: latest.is_typing === true,
-          });
-        } else {
-          setPartnerPresence({ isOnline: false, isInChat: false, isTyping: false });
-        }
-      })
-      .on('presence', { event: 'join' }, ({ key, newPresences }) => {
-        if (key === initialContact.id) {
-          const latest = newPresences[newPresences.length - 1];
-          setPartnerPresence({
-            isOnline: true,
-            isInChat: latest.current_chat_id === session.user.id,
-            isTyping: latest.is_typing === true,
-          });
-        }
-      })
-      .on('presence', { event: 'leave' }, ({ key }) => {
-        if (key === initialContact.id) {
-          setPartnerPresence({ isOnline: false, isInChat: false, isTyping: false });
-        }
-      })
-      .subscribe(async (status) => {
-        if (status === 'SUBSCRIBED') {
-          await channel.track({
-            online_at: new Date().toISOString(),
-            current_chat_id: initialContact.id,
-            is_typing: isTyping
-          });
-        }
       });
 
-    return () => {
-      channel.unsubscribe();
-    };
-  }, [initialContact, session.user, isTyping]);
+      channelRef.current = channel;
+
+      channel
+        .on('presence', { event: 'sync' }, () => {
+          const state = channel.presenceState();
+          const partnerState: any = state[initialContact.id];
+          
+          if (partnerState && partnerState.length > 0) {
+            const latest = partnerState[partnerState.length - 1];
+            setPartnerPresence({
+              isOnline: true,
+              isInChat: latest.current_chat_id === session.user.id,
+              isTyping: latest.is_typing === true,
+            });
+          } else {
+            setPartnerPresence({ isOnline: false, isInChat: false, isTyping: false });
+          }
+        })
+        .on('presence', { event: 'join' }, ({ key, newPresences }) => {
+          if (key === initialContact.id) {
+            const latest = newPresences[newPresences.length - 1];
+            setPartnerPresence({
+              isOnline: true,
+              isInChat: latest.current_chat_id === session.user.id,
+              isTyping: latest.is_typing === true,
+            });
+          }
+        })
+        .on('presence', { event: 'leave' }, ({ key }) => {
+          if (key === initialContact.id) {
+            setPartnerPresence({ isOnline: false, isInChat: false, isTyping: false });
+          }
+        })
+        .subscribe(async (status) => {
+          if (status === 'SUBSCRIBED') {
+            await channel.track({
+              online_at: new Date().toISOString(),
+              current_chat_id: initialContact.id,
+              is_typing: isTyping
+            });
+          }
+        });
+
+      return () => {
+        channel.unsubscribe();
+        channelRef.current = null;
+      };
+    }, [initialContact?.id, session.user?.id]);
+
+    useEffect(() => {
+      if (channelRef.current) {
+        channelRef.current.track({
+          online_at: new Date().toISOString(),
+          current_chat_id: initialContact.id,
+          is_typing: isTyping
+        });
+      }
+    }, [isTyping]);
+
 
   useEffect(() => {
     const timeout = setTimeout(() => {
@@ -771,11 +787,44 @@ export function Chat({ session, privateKey, initialContact, isPartnerOnline, onB
           })
         )}
 
-        <div ref={messagesEndRef} />
-      </div>
+          <div ref={messagesEndRef} />
+        </div>
 
-      {/* Input Area */}
-      <footer className="p-6 bg-black/40 backdrop-blur-3xl border-t border-white/5 relative z-30 shrink-0">
+        {/* Typing and Status Indicators - Bottom Left */}
+        <div className="px-6 pb-2 flex flex-col gap-2 items-start pointer-events-none relative z-20">
+          <AnimatePresence>
+            {partnerPresence.isInChat && (
+              <motion.div 
+                initial={{ opacity: 0, x: -10 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -10 }}
+                className="flex items-center gap-2 bg-emerald-500/10 border border-emerald-500/20 px-3 py-1 rounded-full backdrop-blur-md"
+              >
+                <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.5)]" />
+                <span className="text-[8px] font-black uppercase tracking-widest text-emerald-400">In Chat</span>
+              </motion.div>
+            )}
+            {partnerPresence.isTyping && (
+              <motion.div 
+                initial={{ opacity: 0, x: -10 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -10 }}
+                className="flex items-center gap-2 bg-indigo-500/10 border border-indigo-500/20 px-3 py-1 rounded-full backdrop-blur-md"
+              >
+                <div className="flex gap-1">
+                  <span className="w-1 h-1 bg-indigo-500 rounded-full animate-bounce [animation-delay:-0.3s]" />
+                  <span className="w-1 h-1 bg-indigo-500 rounded-full animate-bounce [animation-delay:-0.15s]" />
+                  <span className="w-1 h-1 bg-indigo-500 rounded-full animate-bounce" />
+                </div>
+                <span className="text-[8px] font-black uppercase tracking-widest text-indigo-400">Typing</span>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+
+        {/* Input Area */}
+        <footer className="p-6 bg-black/40 backdrop-blur-3xl border-t border-white/5 relative z-30 shrink-0">
+
         <div className="flex items-center gap-3 relative">
           <Button 
             variant="ghost" 

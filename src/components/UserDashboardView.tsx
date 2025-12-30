@@ -91,6 +91,8 @@ export function UserDashboardView({ session, privateKey }: UserDashboardViewProp
           };
 
         const handleFocus = () => updateOnlineStatus(true);
+        // Removed aggressive blur tracking as it causes "offline" when user is still looking
+        // const handleBlur = () => updateOnlineStatus(false);
 
         document.addEventListener('visibilitychange', handleVisibilityChange);
         window.addEventListener('focus', handleFocus);
@@ -105,10 +107,9 @@ export function UserDashboardView({ session, privateKey }: UserDashboardViewProp
           if (document.visibilityState === 'visible') {
             updateOnlineStatus(true);
           }
-          fetchProfiles(); // Periodically refresh profiles to get updated_at fallback
           fetchUnviewedSnapshots();
           supabase.rpc('purge_viewed_content');
-        }, 15000);
+        }, 10000); // Reduced to 10s for more "immediate" status
 
         if ("Notification" in window && Notification.permission === "default") {
           Notification.requestPermission();
@@ -124,35 +125,8 @@ export function UserDashboardView({ session, privateKey }: UserDashboardViewProp
       }, [session.user.id]);
 
       async function updateOnlineStatus(online: boolean = true) {
-        if (!session?.user) return;
-        
-        try {
-          if (online && presenceChannelRef.current) {
-            await presenceChannelRef.current.track({
-              user_id: session.user.id,
-              online_at: new Date().toISOString(),
-            });
-          }
-          
-          // Heartbeat update in DB as fallback
-          if (online) {
-            await supabase.from("profiles")
-              .update({ updated_at: new Date().toISOString() })
-              .eq("id", session.user.id);
-          }
-        } catch (e) {
-          console.error("Status update failed:", e);
-        }
+        // No-op here, handled by Home component
       }
-
-      const isUserOnline = (p: any) => {
-        if (!p) return false;
-        if (onlineUsers.has(p.id)) return true;
-        if (!p.updated_at) return false;
-        const lastSeen = new Date(p.updated_at).getTime();
-        const now = new Date().getTime();
-        return (now - lastSeen) < 60000; // 60s threshold
-      };
 
 
     async function fetchProfile() {
@@ -280,25 +254,12 @@ export function UserDashboardView({ session, privateKey }: UserDashboardViewProp
         }
       }).subscribe();
 
-      const presenceChannel = supabase.channel("online-users", {
-        config: {
-          presence: {
-            key: session.user.id,
-          },
-        },
-      }).on("presence", { event: "sync" }, () => {
+      const presenceChannel = supabase.channel("online-users").on("presence", { event: "sync" }, () => {
         const state = presenceChannel.presenceState();
         const online = new Set<string>();
         Object.values(state).forEach((users: any) => { users.forEach((u: any) => online.add(u.user_id)); });
         setOnlineUsers(online);
-      }).subscribe(async (status) => {
-        if (status === "SUBSCRIBED") {
-          await presenceChannel.track({
-            user_id: session.user.id,
-            online_at: new Date().toISOString(),
-          });
-        }
-      });
+      }).subscribe();
 
       presenceChannelRef.current = presenceChannel;
 
@@ -540,116 +501,113 @@ export function UserDashboardView({ session, privateKey }: UserDashboardViewProp
                             ) : (
                               profiles
                                 .filter(p => p.username.toLowerCase().includes(chatSearchQuery.toLowerCase()))
-                          .map(p => {
-                                    const online = isUserOnline(p);
-                                    return (
+                          .map(p => (
                                     <button key={p.id} onClick={() => { setSelectedContact(p); if (window.innerWidth < 1024) setActiveView("chat"); }} className="flex items-center gap-4 p-6 bg-white/[0.02] border border-white/5 rounded-[2.5rem] hover:bg-white/[0.05] transition-all group">
                                       <AvatarDisplay profile={p} className="h-14 w-14 group-hover:scale-110 transition-transform" />
                                       <div className="flex-1 text-left">
                                         <p className="font-black text-lg uppercase italic font-accent">{p.username}</p>
                                         <div className="flex items-center gap-2">
-                                            <div className={`w-1.5 h-1.5 rounded-full ${online ? 'bg-emerald-500 animate-pulse' : 'bg-white/10'}`} />
-                                            <p className="text-[10px] font-bold uppercase tracking-widest text-white/30">{online ? 'Online' : 'Offline'}</p>
+                                            <div className={`w-1.5 h-1.5 rounded-full ${onlineUsers.has(p.id) ? 'bg-emerald-500 animate-pulse' : 'bg-white/10'}`} />
+                                            <p className="text-[10px] font-bold uppercase tracking-widest text-white/30">{onlineUsers.has(p.id) ? 'Online' : 'Offline'}</p>
 
                                         </div>
                                       </div>
                                       <ChevronRight className="w-5 h-5 text-white/10 group-hover:text-indigo-400 group-hover:translate-x-1 transition-all" />
                                     </button>
-                                  );
-                                })
-                            )}
+                                  ))
+                              )}
+                            </div>
                           </div>
-                        </div>
-                      ) : (
-                          <Chat 
-                            session={session} 
-                            privateKey={privateKey} 
-                            initialContact={selectedContact} 
-                            isPartnerOnline={isUserOnline(selectedContact)}
-                            onBack={() => setSelectedContact(null)}
-                            onInitiateCall={(c, m) => setActiveCall({ contact: c, mode: m, isInitiator: true })} 
-                          />
-                      )}
-                    </motion.div>
-                  )}
+                        ) : (
+                            <Chat 
+                              session={session} 
+                              privateKey={privateKey} 
+                              initialContact={selectedContact} 
+                              isPartnerOnline={onlineUsers.has(selectedContact.id)}
+                              onBack={() => setSelectedContact(null)}
+                              onInitiateCall={(c, m) => setActiveCall({ contact: c, mode: m, isInitiator: true })} 
+                            />
+                        )}
+                      </motion.div>
+                    )}
 
-              {activeView === "vault" && (
-                <motion.div key="vault" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="h-full">
-                  <PrivateSafe session={session} onClose={() => setActiveView("dashboard")} />
+                {activeView === "vault" && (
+                  <motion.div key="vault" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="h-full">
+                    <PrivateSafe session={session} onClose={() => setActiveView("dashboard")} />
+                  </motion.div>
+                )}
+              {activeView === "calls" && (
+                <motion.div key="calls" initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} className="h-full p-8">
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {profiles.map(p => (
+                      <div key={p.id} className="p-6 bg-white/[0.02] border border-white/5 rounded-3xl flex flex-col items-center gap-4">
+                        <AvatarDisplay profile={p} className="h-16 w-16" />
+                        <p className="font-black text-lg uppercase font-accent">{p.username}</p>
+                        <div className="flex gap-2 w-full">
+                          <Button onClick={() => setActiveCall({ contact: p, mode: "voice", isInitiator: true })} className="flex-1 bg-emerald-600 font-accent uppercase text-[10px]">Voice</Button>
+                          <Button onClick={() => setActiveCall({ contact: p, mode: "video", isInitiator: true })} className="flex-1 bg-indigo-600 font-accent uppercase text-[10px]">Video</Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 </motion.div>
               )}
-            {activeView === "calls" && (
-              <motion.div key="calls" initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} className="h-full p-8">
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {profiles.map(p => (
-                    <div key={p.id} className="p-6 bg-white/[0.02] border border-white/5 rounded-3xl flex flex-col items-center gap-4">
-                      <AvatarDisplay profile={p} className="h-16 w-16" />
-                      <p className="font-black text-lg uppercase font-accent">{p.username}</p>
-                      <div className="flex gap-2 w-full">
-                        <Button onClick={() => setActiveCall({ contact: p, mode: "voice", isInitiator: true })} className="flex-1 bg-emerald-600 font-accent uppercase text-[10px]">Voice</Button>
-                        <Button onClick={() => setActiveCall({ contact: p, mode: "video", isInitiator: true })} className="flex-1 bg-indigo-600 font-accent uppercase text-[10px]">Video</Button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </motion.div>
-            )}
-            {activeView === "settings" && (
-              <motion.div key="settings" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="h-full p-8">
-                <ProfileSettings profile={myProfile} onUpdate={fetchProfile} onClose={() => setActiveView("dashboard")} />
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </main>
+              {activeView === "settings" && (
+                <motion.div key="settings" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="h-full p-8">
+                  <ProfileSettings profile={myProfile} onUpdate={fetchProfile} onClose={() => setActiveView("dashboard")} />
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </main>
 
-        <AnimatePresence>
-          {activeCall && <VideoCall userId={session.user.id} contact={activeCall.contact} callType={activeCall.mode} isInitiator={activeCall.isInitiator} incomingSignal={activeCall.incomingSignal} onClose={() => setActiveCall(null)} />}
-          {incomingCall && !activeCall && (
-            <div className="fixed inset-0 z-[200] flex items-center justify-center p-6 bg-black/60 backdrop-blur-md">
-              <div className="bg-[#0a0a0a] border border-white/10 rounded-[3rem] p-10 max-w-sm w-full text-center space-y-8">
-                <AvatarDisplay profile={incomingCall.caller} className="h-32 w-32 mx-auto" />
-                <h3 className="text-4xl font-black italic uppercase font-accent">{incomingCall.caller.username}</h3>
-                <div className="flex gap-4">
-                  <Button onClick={() => setIncomingCall(null)} className="flex-1 bg-red-600">Decline</Button>
-                  <Button onClick={() => { setActiveCall({ contact: incomingCall.caller, mode: incomingCall.call_mode, isInitiator: false, incomingSignal: JSON.parse(incomingCall.signal_data) }); setIncomingCall(null); }} className="flex-1 bg-emerald-600">Accept</Button>
+          <AnimatePresence>
+            {activeCall && <VideoCall userId={session.user.id} contact={activeCall.contact} callType={activeCall.mode} isInitiator={activeCall.isInitiator} incomingSignal={activeCall.incomingSignal} onClose={() => setActiveCall(null)} />}
+            {incomingCall && !activeCall && (
+              <div className="fixed inset-0 z-[200] flex items-center justify-center p-6 bg-black/60 backdrop-blur-md">
+                <div className="bg-[#0a0a0a] border border-white/10 rounded-[3rem] p-10 max-w-sm w-full text-center space-y-8">
+                  <AvatarDisplay profile={incomingCall.caller} className="h-32 w-32 mx-auto" />
+                  <h3 className="text-4xl font-black italic uppercase font-accent">{incomingCall.caller.username}</h3>
+                  <div className="flex gap-4">
+                    <Button onClick={() => setIncomingCall(null)} className="flex-1 bg-red-600">Decline</Button>
+                    <Button onClick={() => { setActiveCall({ contact: incomingCall.caller, mode: incomingCall.call_mode, isInitiator: false, incomingSignal: JSON.parse(incomingCall.signal_data) }); setIncomingCall(null); }} className="flex-1 bg-emerald-600">Accept</Button>
+                  </div>
                 </div>
               </div>
-            </div>
-          )}
-        </AnimatePresence>
+            )}
+          </AnimatePresence>
 
-          <nav className={`lg:hidden fixed bottom-0 left-0 right-0 border-t border-white/5 bg-[#050505]/95 backdrop-blur-3xl px-4 py-4 flex justify-around items-center z-50 rounded-t-[2.5rem] pb-safe transition-all ${ (activeView === 'chat' && selectedContact) ? 'translate-y-full' : ''}`}>
-            {navItems.map(item => {
-              const isActive = activeView === item.id;
-              return (
-                    <button 
-                      key={item.id} 
-                      onClick={() => handleNavClick(item.id as ActiveView)} 
-                      className={`flex flex-col items-center gap-1.5 px-3 py-2 relative transition-all group ${isActive ? 'text-white' : 'text-white/30'}`}
-                    >
-                      <item.icon className={`w-5 h-5 transition-all duration-300 ${isActive ? 'text-indigo-400 scale-110 drop-shadow-[0_0_12px_rgba(99,102,241,0.6)]' : 'group-hover:text-white/50'}`} />
-                      
-                        <span className={`text-[8px] font-black uppercase tracking-[0.2em] font-accent leading-none transition-all ${isActive ? 'text-white' : 'text-white/40'}`}>{item.label}</span>
+            <nav className={`lg:hidden fixed bottom-0 left-0 right-0 border-t border-white/5 bg-[#050505]/95 backdrop-blur-3xl px-4 py-4 flex justify-around items-center z-50 rounded-t-[2.5rem] pb-safe transition-all ${ (activeView === 'chat' && selectedContact) ? 'translate-y-full' : ''}`}>
+              {navItems.map(item => {
+                const isActive = activeView === item.id;
+                return (
+                      <button 
+                        key={item.id} 
+                        onClick={() => handleNavClick(item.id as ActiveView)} 
+                        className={`flex flex-col items-center gap-1.5 px-3 py-2 relative transition-all group ${isActive ? 'text-white' : 'text-white/30'}`}
+                      >
+                        <item.icon className={`w-5 h-5 transition-all duration-300 ${isActive ? 'text-indigo-400 scale-110 drop-shadow-[0_0_12px_rgba(99,102,241,0.6)]' : 'group-hover:text-white/50'}`} />
+                        
+                          <span className={`text-[8px] font-black uppercase tracking-[0.2em] font-accent leading-none transition-all ${isActive ? 'text-white' : 'text-white/40'}`}>{item.label}</span>
+  
+                          {isActive && (
+                            <motion.div 
+                              layoutId="bottomIndicator" 
+                              className="absolute left-1/2 -translate-x-1/2 h-[3px] bg-indigo-500 rounded-full" 
+                              initial={{ width: 0, opacity: 0 }}
+                              animate={{ width: '16px', opacity: 1 }}
+                              style={{ 
+                                boxShadow: '0 0 15px rgba(99, 102, 241, 1), 0 0 5px rgba(99, 102, 241, 0.5)',
+                                bottom: '2px'
+                              }}
+                              transition={{ type: "spring", stiffness: 500, damping: 30 }}
+                            />
+                          )}
+                        </button>
 
-                        {isActive && (
-                          <motion.div 
-                            layoutId="bottomIndicator" 
-                            className="absolute left-1/2 -translate-x-1/2 h-[3px] bg-indigo-500 rounded-full" 
-                            initial={{ width: 0, opacity: 0 }}
-                            animate={{ width: '16px', opacity: 1 }}
-                            style={{ 
-                              boxShadow: '0 0 15px rgba(99, 102, 241, 1), 0 0 5px rgba(99, 102, 241, 0.5)',
-                              bottom: '2px'
-                            }}
-                            transition={{ type: "spring", stiffness: 500, damping: 30 }}
-                          />
-                        )}
-                      </button>
-
-              );
-            })}
-          </nav>
-      </div>
+                );
+              })}
+            </nav>
+        </div>
     </div>
   );
 }
