@@ -165,6 +165,22 @@ export default function Home() {
     setOtpVerified(true);
   }
 
+  const [onlineNodesCount, setOnlineNodesCount] = useState(0);
+
+  useEffect(() => {
+    const channel = supabase.channel("online-users-count")
+      .on("presence", { event: "sync" }, () => {
+        const state = channel.presenceState();
+        const count = Object.keys(state).length;
+        setOnlineNodesCount(count);
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, []);
+
   const handleAppUnlock = () => {
     sessionStorage.setItem("app_unlocked", "true");
     setIsAppUnlocked(true);
@@ -359,7 +375,7 @@ export default function Home() {
                             </div>
                         ))}
                     </div>
-                    <p className="text-[7px] font-medium uppercase tracking-[0.2em] text-white/30">12k+ nodes synced</p>
+                    <p className="text-[7px] font-medium uppercase tracking-[0.2em] text-white/30">{onlineNodesCount > 0 ? `${onlineNodesCount} nodes active` : '12k+ nodes synced'}</p>
                   </div>
                 </div>
                 

@@ -256,15 +256,6 @@ export function Chat({ session, privateKey, initialContact, isPartnerOnline, onB
         }
       });
 
-    // Update tracking when typing state changes
-    if (isTyping) {
-      channel.track({
-        online_at: new Date().toISOString(),
-        current_chat_id: initialContact.id,
-        is_typing: true
-      });
-    }
-
     return () => {
       channel.unsubscribe();
     };
@@ -591,16 +582,13 @@ export function Chat({ session, privateKey, initialContact, isPartnerOnline, onB
   if (!initialContact) return null;
 
   return (
-    <div 
-      className="flex flex-col h-full bg-[#030303] relative overflow-hidden select-none" 
-      onContextMenu={(e) => e.preventDefault()}
-    >
+    <div className="flex flex-col h-full bg-[#030303] relative overflow-hidden select-none" onContextMenu={(e) => e.preventDefault()}>
       <style jsx global>{`
-        @media print { body { display: none !important; } }
+        @media print { body { display: none; } }
         .no-screenshot {
-          -webkit-touch-callout: none !important;
-          -webkit-user-select: none !important;
-          user-select: none !important;
+          -webkit-touch-callout: none;
+          -webkit-user-select: none;
+          user-select: none;
         }
       `}</style>
 
@@ -784,38 +772,6 @@ export function Chat({ session, privateKey, initialContact, isPartnerOnline, onB
         )}
 
         <div ref={messagesEndRef} />
-      </div>
-
-      {/* Realtime Indicators (Bottom Left) */}
-      <div className="absolute bottom-[100px] left-6 z-40 pointer-events-none">
-        <AnimatePresence>
-          {partnerPresence.isInChat && (
-            <motion.div 
-              initial={{ opacity: 0, x: -10 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -10 }}
-              className="flex items-center gap-2 mb-2"
-            >
-              <div className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.5)] animate-pulse" />
-              <span className="text-[8px] font-black uppercase tracking-[0.2em] text-emerald-400">In Chat</span>
-            </motion.div>
-          )}
-          {partnerPresence.isTyping && (
-            <motion.div 
-              initial={{ opacity: 0, x: -10 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -10 }}
-              className="flex items-center gap-2"
-            >
-              <div className="flex gap-1">
-                <motion.div animate={{ opacity: [0.2, 1, 0.2] }} transition={{ repeat: Infinity, duration: 1, delay: 0 }} className="w-1 h-1 rounded-full bg-indigo-500" />
-                <motion.div animate={{ opacity: [0.2, 1, 0.2] }} transition={{ repeat: Infinity, duration: 1, delay: 0.2 }} className="w-1 h-1 rounded-full bg-indigo-500" />
-                <motion.div animate={{ opacity: [0.2, 1, 0.2] }} transition={{ repeat: Infinity, duration: 1, delay: 0.4 }} className="w-1 h-1 rounded-full bg-indigo-500" />
-              </div>
-              <span className="text-[8px] font-black uppercase tracking-[0.2em] text-indigo-400">Typing intelligence...</span>
-            </motion.div>
-          )}
-        </AnimatePresence>
       </div>
 
       {/* Input Area */}

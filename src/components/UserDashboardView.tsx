@@ -46,260 +46,244 @@ export function UserDashboardView({ session, privateKey }: UserDashboardViewProp
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [notifications, setNotifications] = useState<any[]>([]);
   const [showNotifications, setShowNotifications] = useState(false);
-    const [activeCall, setActiveCall] = useState<any>(null);
-    const [incomingCall, setIncomingCall] = useState<any>(null);
-    const [broadcasts, setBroadcasts] = useState<any[]>([]);
-    const [systemConfig, setSystemConfig] = useState<any>({});
-    const [unviewedSnapshots, setUnviewedSnapshots] = useState<any[]>([]);
-    const [chatSearchQuery, setChatSearchQuery] = useState("");
-    const notificationSound = useRef<HTMLAudioElement | null>(null);
+  const [activeCall, setActiveCall] = useState<any>(null);
+  const [incomingCall, setIncomingCall] = useState<any>(null);
+  const [broadcasts, setBroadcasts] = useState<any[]>([]);
+  const [systemConfig, setSystemConfig] = useState<any>({});
+  const [unviewedSnapshots, setUnviewedSnapshots] = useState<any[]>([]);
+  const [chatSearchQuery, setChatSearchQuery] = useState("");
+  const notificationSound = useRef<HTMLAudioElement | null>(null);
 
-    useEffect(() => {
-      notificationSound.current = new Audio("https://assets.mixkit.co/active_storage/sfx/2358/2358-preview.mp3");
-    }, []);
+  useEffect(() => {
+    notificationSound.current = new Audio("https://assets.mixkit.co/active_storage/sfx/2358/2358-preview.mp3");
+  }, []);
 
-      useEffect(() => {
-        // Register Service Worker for mobile/background notifications
-        if ('serviceWorker' in navigator) {
-          navigator.serviceWorker.register('/sw.js').then((registration) => {
-            console.log('Service Worker registered with scope:', registration.scope);
-          }).catch((error) => {
-            console.error('Service Worker registration failed:', error);
-          });
-        }
+  useEffect(() => {
+    // Register Service Worker for mobile/background notifications
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/sw.js').then((registration) => {
+        console.log('Service Worker registered with scope:', registration.scope);
+      }).catch((error) => {
+        console.error('Service Worker registration failed:', error);
+      });
+    }
 
-        fetchProfile();
-        fetchProfiles();
-        fetchRecentChats();
-        fetchBroadcasts();
-        fetchSystemConfig();
-        fetchUnviewedSnapshots();
-        fetchUnreadCount();
-        const cleanup = setupRealtimeSubscriptions();
+    fetchProfile();
+    fetchProfiles();
+    fetchRecentChats();
+    fetchBroadcasts();
+    fetchSystemConfig();
+    fetchUnviewedSnapshots();
+    fetchUnreadCount();
+    const cleanup = setupRealtimeSubscriptions();
 
-          const handleVisibilityChange = () => {
-            if (document.visibilityState === 'visible') {
-              updateOnlineStatus(true);
-            } else {
-              // Quick update for offline status
-              setTimeout(() => {
-                if (document.visibilityState !== 'visible') {
-                  updateOnlineStatus(false);
-                }
-              }, 1000); 
-            }
-          };
-
-        const handleFocus = () => updateOnlineStatus(true);
-        // Removed aggressive blur tracking as it causes "offline" when user is still looking
-        // const handleBlur = () => updateOnlineStatus(false);
-
-        document.addEventListener('visibilitychange', handleVisibilityChange);
-        window.addEventListener('focus', handleFocus);
-        window.addEventListener('beforeunload', () => updateOnlineStatus(false));
-
-        // Initial status
-        if (document.visibilityState === 'visible') {
-          updateOnlineStatus(true);
-        }
-
-        const interval = setInterval(() => {
-          if (document.visibilityState === 'visible') {
-            updateOnlineStatus(true);
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        updateOnlineStatus(true);
+      } else {
+        setTimeout(() => {
+          if (document.visibilityState !== 'visible') {
+            updateOnlineStatus(false);
           }
-          fetchUnviewedSnapshots();
-          supabase.rpc('purge_viewed_content');
-        }, 10000); // Reduced to 10s for more "immediate" status
+        }, 1000); 
+      }
+    };
 
-        if ("Notification" in window && Notification.permission === "default") {
-          Notification.requestPermission();
-        }
+    const handleFocus = () => updateOnlineStatus(true);
 
-        return () => {
-          clearInterval(interval);
-          document.removeEventListener('visibilitychange', handleVisibilityChange);
-          window.removeEventListener('focus', handleFocus);
-          updateOnlineStatus(false);
-          cleanup();
-        };
-      }, [session.user.id]);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('focus', handleFocus);
+    window.addEventListener('beforeunload', () => updateOnlineStatus(false));
 
-      async function updateOnlineStatus(online: boolean = true) {
-        if (!session.user.id) return;
-        
-        // Update database heartbeat
-        await supabase
-          .from("profiles")
-          .update({ 
-            last_seen: online ? new Date().toISOString() : new Date(Date.now() - 60000).toISOString(),
-            updated_at: new Date().toISOString()
-          })
-          .eq("id", session.user.id);
-          
-        // Update presence if channel exists
-        if (presenceChannelRef.current && online) {
-          presenceChannelRef.current.track({
-            user_id: session.user.id,
-            online_at: new Date().toISOString()
-          });
+    if (document.visibilityState === 'visible') {
+      updateOnlineStatus(true);
+    }
+
+    const interval = setInterval(() => {
+      if (document.visibilityState === 'visible') {
+        updateOnlineStatus(true);
+      }
+      fetchUnviewedSnapshots();
+      supabase.rpc('purge_viewed_content');
+    }, 10000);
+
+    if ("Notification" in window && Notification.permission === "default") {
+      Notification.requestPermission();
+    }
+
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('focus', handleFocus);
+      updateOnlineStatus(false);
+      cleanup();
+    };
+  }, [session.user.id]);
+
+  async function updateOnlineStatus(online: boolean = true) {
+    if (!session?.user?.id) return;
+    try {
+      await supabase.from("profiles").update({ 
+        updated_at: new Date().toISOString() 
+      }).eq("id", session.user.id);
+    } catch (error) {
+      console.error("Failed to update heartbeat:", error);
+    }
+  }
+
+  function isUserOnline(profileId: string) {
+    if (onlineUsers.has(profileId)) return true;
+    const profile = profiles.find(p => p.id === profileId) || (selectedContact?.id === profileId ? selectedContact : null);
+    if (profile?.updated_at) {
+      const lastSeen = new Date(profile.updated_at).getTime();
+      return (Date.now() - lastSeen) < 120000;
+    }
+    return false;
+  }
+
+  async function fetchProfile() {
+    const { data } = await supabase.from("profiles").select("*").eq("id", session.user.id).single();
+    if (data) setMyProfile(data);
+  }
+
+  async function fetchProfiles() {
+    const { data } = await supabase.from("profiles").select("*").neq("id", session.user.id);
+    if (data) setProfiles(data);
+  }
+
+  async function fetchRecentChats() {
+    const { data: messages } = await supabase
+      .from("messages")
+      .select("sender_id, receiver_id, created_at")
+      .or(`sender_id.eq.${session.user.id},receiver_id.eq.${session.user.id}`)
+      .order("created_at", { ascending: false });
+
+    if (messages) {
+      const contactIds = Array.from(new Set(messages.flatMap(m => [m.sender_id, m.receiver_id])))
+        .filter(id => id !== session.user.id);
+      
+      if (contactIds.length > 0) {
+        const { data: profilesData } = await supabase.from("profiles").select("*").in("id", contactIds);
+        if (profilesData) {
+          const sorted = contactIds.map(id => profilesData.find(p => p.id === id)).filter(Boolean);
+          setRecentChats(sorted);
         }
       }
-
-
-    async function fetchProfile() {
-      const { data } = await supabase.from("profiles").select("*").eq("id", session.user.id).single();
-      if (data) setMyProfile(data);
     }
+  }
 
-    async function fetchProfiles() {
-      const { data } = await supabase.from("profiles").select("*").neq("id", session.user.id);
-      if (data) setProfiles(data);
+  async function fetchBroadcasts() {
+    const { data } = await supabase.from("broadcasts").select("*").order("created_at", { ascending: false }).limit(1);
+    if (data) setBroadcasts(data);
+  }
+
+  async function fetchSystemConfig() {
+    const { data } = await supabase.from("system_config").select("*").single();
+    if (data) setSystemConfig(data);
+  }
+
+  async function fetchUnviewedSnapshots() {
+    const { data } = await supabase.from("stories").select("*").order("created_at", { ascending: false });
+    if (data) setUnviewedSnapshots(data);
+  }
+
+  async function fetchUnreadCount() {
+    const { count } = await supabase
+      .from("messages")
+      .select("*", { count: 'exact', head: true })
+      .eq("receiver_id", session.user.id)
+      .eq("is_viewed", false);
+    setUnreadCount(count || 0);
+  }
+
+  async function showNotification(title: string, options?: NotificationOptions) {
+    if (notificationSound.current) {
+      notificationSound.current.play().catch(e => console.error("Sound play failed:", e));
     }
-
-    async function fetchRecentChats() {
-      const { data: messages } = await supabase
-        .from("messages")
-        .select("sender_id, receiver_id, created_at")
-        .or(`sender_id.eq.${session.user.id},receiver_id.eq.${session.user.id}`)
-        .order("created_at", { ascending: false });
-
-      if (messages) {
-        const contactIds = Array.from(new Set(messages.flatMap(m => [m.sender_id, m.receiver_id])))
-          .filter(id => id !== session.user.id);
-        
-        if (contactIds.length > 0) {
-          const { data: profilesData } = await supabase.from("profiles").select("*").in("id", contactIds);
-          if (profilesData) {
-            const sorted = contactIds.map(id => profilesData.find(p => p.id === id)).filter(Boolean);
-            setRecentChats(sorted);
-          }
-        }
-      }
-    }
-
-    async function fetchBroadcasts() {
-      const { data } = await supabase.from("broadcasts").select("*").order("created_at", { ascending: false }).limit(1);
-      if (data) setBroadcasts(data);
-    }
-
-    async function fetchSystemConfig() {
-      const { data } = await supabase.from("system_config").select("*").single();
-      if (data) setSystemConfig(data);
-    }
-
-    async function fetchUnviewedSnapshots() {
-      const { data } = await supabase.from("stories").select("*").order("created_at", { ascending: false });
-      if (data) setUnviewedSnapshots(data);
-    }
-
-    async function fetchUnreadCount() {
-      const { count } = await supabase
-        .from("messages")
-        .select("*", { count: 'exact', head: true })
-        .eq("receiver_id", session.user.id)
-        .eq("is_viewed", false);
-      setUnreadCount(count || 0);
-    }
-
-    async function showNotification(title: string, options?: NotificationOptions) {
-      // Play sound
-      if (notificationSound.current) {
-        notificationSound.current.play().catch(e => console.error("Sound play failed:", e));
-      }
-
-      // Show browser notification via Service Worker if available for better mobile/background support
-      if ('serviceWorker' in navigator && 'Notification' in window && Notification.permission === "granted") {
-        const registration = await navigator.serviceWorker.ready;
-        registration.showNotification(title, {
+    if ('serviceWorker' in navigator && 'Notification' in window && Notification.permission === "granted") {
+      const registration = await navigator.serviceWorker.ready;
+      registration.showNotification(title, {
+        icon: "/icon.png",
+        badge: "/icon.png",
+        vibrate: [100, 50, 100],
+        ...options
+      } as any);
+    } else if ("Notification" in window && Notification.permission === "granted") {
+      try {
+        const n = new Notification(title, {
           icon: "/icon.png",
           badge: "/icon.png",
-          vibrate: [100, 50, 100],
           ...options
-        } as any);
-      } else if ("Notification" in window && Notification.permission === "granted") {
-        try {
-          const n = new Notification(title, {
-            icon: "/icon.png",
-            badge: "/icon.png",
-            ...options
-          });
-          n.onclick = () => {
-            window.focus();
-            n.close();
-          };
-        } catch (e) {
-          console.error("Browser notification failed:", e);
-        }
+        });
+        n.onclick = () => {
+          window.focus();
+          n.close();
+        };
+      } catch (e) {
+        console.error("Browser notification failed:", e);
       }
     }
+  }
 
-    const presenceChannelRef = useRef<any>(null);
+  const presenceChannelRef = useRef<any>(null);
 
-    function setupRealtimeSubscriptions() {
-      const broadcastsChannel = supabase.channel("global-broadcasts").on("postgres_changes", { event: "INSERT", schema: "public", table: "broadcasts" }, (payload) => {
-        setBroadcasts([payload.new]);
-        toast.info("Global Broadcast Received", { description: payload.new.content, icon: <Radio className="w-4 h-4 text-indigo-500" /> });
-        showNotification("Global Broadcast", { body: payload.new.content });
-      }).subscribe();
+  function setupRealtimeSubscriptions() {
+    const broadcastsChannel = supabase.channel("global-broadcasts").on("postgres_changes", { event: "INSERT", schema: "public", table: "broadcasts" }, (payload) => {
+      setBroadcasts([payload.new]);
+      toast.info("Global Broadcast Received", { description: payload.new.content, icon: <Radio className="w-4 h-4 text-indigo-500" /> });
+      showNotification("Global Broadcast", { body: payload.new.content });
+    }).subscribe();
 
-      const messagesChannel = supabase.channel("dashboard-messages").on("postgres_changes", { event: "INSERT", schema: "public", table: "messages", filter: `receiver_id=eq.${session.user.id}` }, (payload) => {
-        fetchRecentChats();
-        fetchUnreadCount();
-        toast.info("New message received");
-        showNotification("New Message", { body: "You have received a new intelligence packet." });
-      }).subscribe();
+    const messagesChannel = supabase.channel("dashboard-messages").on("postgres_changes", { event: "INSERT", schema: "public", table: "messages", filter: `receiver_id=eq.${session.user.id}` }, (payload) => {
+      fetchRecentChats();
+      fetchUnreadCount();
+      toast.info("New message received");
+      showNotification("New Message", { body: "You have received a new intelligence packet." });
+    }).subscribe();
 
-      const callsChannel = supabase.channel("incoming-calls").on("postgres_changes", { event: "INSERT", schema: "public", table: "calls", filter: `receiver_id=eq.${session.user.id}` }, async (payload) => {
-        const data = payload.new;
-        if (data.type === "offer" && !activeCall && !incomingCall) {
-          const { data: caller } = await supabase.from("profiles").select("*").eq("id", data.caller_id).single();
-          if (caller) {
-            setIncomingCall({ ...data, caller });
-            toast.info(`Incoming ${data.call_mode} call from ${caller.username}`, { duration: 10000 });
-            showNotification(`Incoming ${data.call_mode} call`, { body: `Call from ${caller.username}` });
-          }
+    const callsChannel = supabase.channel("incoming-calls").on("postgres_changes", { event: "INSERT", schema: "public", table: "calls", filter: `receiver_id=eq.${session.user.id}` }, async (payload) => {
+      const data = payload.new;
+      if (data.type === "offer" && !activeCall && !incomingCall) {
+        const { data: caller } = await supabase.from("profiles").select("*").eq("id", data.caller_id).single();
+        if (caller) {
+          setIncomingCall({ ...data, caller });
+          toast.info(`Incoming ${data.call_mode} call from ${caller.username}`, { duration: 10000 });
+          showNotification(`Incoming ${data.call_mode} call`, { body: `Call from ${caller.username}` });
         }
-      }).subscribe();
+      }
+    }).subscribe();
 
-      const storiesChannel = supabase.channel("new-stories").on("postgres_changes", { event: "INSERT", schema: "public", table: "stories" }, async (payload) => {
-        if (payload.new.user_id !== session.user.id) {
-          const { data: creator } = await supabase.from("profiles").select("username").eq("id", payload.new.user_id).single();
-          if (creator) {
-            toast.info(`New story from ${creator.username}`, { icon: <Camera className="w-4 h-4 text-pink-500" /> });
-            showNotification("New Story", { body: `${creator.username} shared a new temporal snapshot.` });
-          }
+    const storiesChannel = supabase.channel("new-stories").on("postgres_changes", { event: "INSERT", schema: "public", table: "stories" }, async (payload) => {
+      if (payload.new.user_id !== session.user.id) {
+        const { data: creator } = await supabase.from("profiles").select("username").eq("id", payload.new.user_id).single();
+        if (creator) {
+          toast.info(`New story from ${creator.username}`, { icon: <Camera className="w-4 h-4 text-pink-500" /> });
+          showNotification("New Story", { body: `${creator.username} shared a new temporal snapshot.` });
         }
-      }).subscribe();
+      }
+    }).subscribe();
 
-      const presenceChannel = supabase.channel("online-users", {
-        config: {
-          presence: {
-            key: session.user.id,
-          },
-        },
-      }).on("presence", { event: "sync" }, () => {
-        const state = presenceChannel.presenceState();
-        const online = new Set<string>();
-        Object.keys(state).forEach((key) => online.add(key));
-        setOnlineUsers(online);
-      }).subscribe(async (status) => {
-        if (status === 'SUBSCRIBED') {
-          await presenceChannel.track({
-            user_id: session.user.id,
-            online_at: new Date().toISOString()
-          });
-        }
-      });
+    const presenceChannel = supabase.channel("online-users").on("presence", { event: "sync" }, () => {
+      const state = presenceChannel.presenceState();
+      const online = new Set<string>();
+      Object.values(state).forEach((users: any) => { users.forEach((u: any) => online.add(u.user_id)); });
+      setOnlineUsers(online);
+    }).subscribe(async (status) => {
+      if (status === 'SUBSCRIBED') {
+        await presenceChannel.track({ user_id: session.user.id });
+      }
+    });
 
-      presenceChannelRef.current = presenceChannel;
+    presenceChannelRef.current = presenceChannel;
 
-      return () => {
-        supabase.removeChannel(broadcastsChannel);
-        supabase.removeChannel(messagesChannel);
-        supabase.removeChannel(callsChannel);
-        supabase.removeChannel(presenceChannel);
-      };
-    }
+    return () => {
+      supabase.removeChannel(broadcastsChannel);
+      supabase.removeChannel(messagesChannel);
+      supabase.removeChannel(callsChannel);
+      supabase.removeChannel(storiesChannel);
+      supabase.removeChannel(presenceChannel);
+    };
+  }
 
   const handleNavClick = (view: ActiveView) => {
     setActiveView(view);
@@ -378,7 +362,6 @@ export function UserDashboardView({ session, privateKey }: UserDashboardViewProp
                           <item.icon className={`w-4 h-4 transition-transform relative z-10 ${isActive ? 'text-indigo-400 scale-110' : 'text-white/20 group-hover:text-white/40'}`} />
                           <span className="text-[10px] font-bold tracking-widest uppercase leading-none relative z-10 font-accent">{item.label}</span>
                         </motion.button>
-
                     );
                   })}
                 </nav>
@@ -425,7 +408,6 @@ export function UserDashboardView({ session, privateKey }: UserDashboardViewProp
                     <item.icon className={`w-5 h-5 transition-transform relative z-10 ${isActive ? 'text-indigo-400 scale-110' : 'text-white/20 group-hover:text-white/40'}`} />
                     {sidebarOpen && <span className="text-[10px] font-bold tracking-widest uppercase relative z-10 font-accent">{item.label}</span>}
                   </motion.button>
-
                 );
               })}
             </nav>
@@ -453,7 +435,7 @@ export function UserDashboardView({ session, privateKey }: UserDashboardViewProp
                   <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
                     {[
                       { label: "Signals", value: unreadCount, icon: MessageCircle, color: "from-indigo-600 to-indigo-700" },
-                      { label: "Nodes", value: onlineUsers.size, icon: Users, color: "from-emerald-600 to-emerald-700" },
+                      { label: "Nodes", value: Array.from(onlineUsers).length, icon: Users, color: "from-emerald-600 to-emerald-700" },
                       { label: "Entities", value: profiles.length, icon: User, color: "from-purple-600 to-purple-700" },
                       { label: "Security", value: "E2EE", icon: Shield, color: "from-orange-600 to-orange-700" }
                     ].map((stat, i) => (
@@ -473,10 +455,18 @@ export function UserDashboardView({ session, privateKey }: UserDashboardViewProp
                       <h3 className="text-sm font-black uppercase tracking-[0.3em] mb-6 font-accent">Recent Channels</h3>
                       <div className="space-y-2">
                         {recentChats.map(chat => (
-                          <button key={chat.id} onClick={() => { setSelectedContact(chat); setActiveView("chat"); }} className="w-full flex items-center gap-4 p-4 hover:bg-white/5 rounded-2xl transition-all">
-                            <AvatarDisplay profile={chat} className="h-10 w-10" />
-                            <div className="flex-1 text-left"><p className="font-black text-sm uppercase italic font-accent">{chat.username}</p></div>
-                            <ChevronRight className="w-4 h-4 text-white/10" />
+                          <button key={chat.id} onClick={() => { setSelectedContact(chat); setActiveView("chat"); }} className="w-full flex items-center gap-4 p-4 hover:bg-white/5 rounded-2xl transition-all group">
+                            <div className="relative">
+                              <AvatarDisplay profile={chat} className="h-10 w-10" />
+                              <div className={`absolute -bottom-1 -right-1 w-3 h-3 rounded-full border-2 border-[#050505] ${isUserOnline(chat.id) ? 'bg-emerald-500' : 'bg-zinc-600'}`} />
+                            </div>
+                            <div className="flex-1 text-left">
+                              <p className="font-black text-sm uppercase italic font-accent">{chat.username}</p>
+                              <p className={`text-[8px] uppercase tracking-widest font-bold ${isUserOnline(chat.id) ? 'text-emerald-500' : 'text-white/20'}`}>
+                                {isUserOnline(chat.id) ? 'Online' : 'Offline'}
+                              </p>
+                            </div>
+                            <ChevronRight className="w-4 h-4 text-white/10 group-hover:text-indigo-400 transition-all" />
                           </button>
                         ))}
                       </div>
@@ -485,9 +475,17 @@ export function UserDashboardView({ session, privateKey }: UserDashboardViewProp
                       <h3 className="text-sm font-black uppercase tracking-[0.3em] mb-6 font-accent">Global Nodes</h3>
                       <div className="grid grid-cols-2 gap-3">
                         {profiles.map(p => (
-                          <div key={p.id} onClick={() => { setSelectedContact(p); setActiveView("chat"); }} className="p-4 bg-white/[0.02] border border-white/5 rounded-2xl flex flex-col items-center gap-3 cursor-pointer hover:border-indigo-500/30">
-                            <AvatarDisplay profile={p} className="h-10 w-10" />
-                            <p className="text-[10px] font-black uppercase font-accent">{p.username}</p>
+                          <div key={p.id} onClick={() => { setSelectedContact(p); setActiveView("chat"); }} className="p-4 bg-white/[0.02] border border-white/5 rounded-2xl flex flex-col items-center gap-3 cursor-pointer hover:border-indigo-500/30 group">
+                            <div className="relative">
+                              <AvatarDisplay profile={p} className="h-10 w-10 group-hover:scale-110 transition-transform" />
+                              <div className={`absolute -bottom-1 -right-1 w-3 h-3 rounded-full border-2 border-[#050505] ${isUserOnline(p.id) ? 'bg-emerald-500' : 'bg-zinc-600'}`} />
+                            </div>
+                            <div className="text-center">
+                              <p className="text-[10px] font-black uppercase font-accent">{p.username}</p>
+                              <p className={`text-[6px] uppercase tracking-widest font-bold ${isUserOnline(p.id) ? 'text-emerald-500' : 'text-white/10'}`}>
+                                {isUserOnline(p.id) ? 'Online' : 'Offline'}
+                              </p>
+                            </div>
                           </div>
                         ))}
                       </div>
@@ -533,13 +531,16 @@ export function UserDashboardView({ session, privateKey }: UserDashboardViewProp
                                 .filter(p => p.username.toLowerCase().includes(chatSearchQuery.toLowerCase()))
                           .map(p => (
                                     <button key={p.id} onClick={() => { setSelectedContact(p); if (window.innerWidth < 1024) setActiveView("chat"); }} className="flex items-center gap-4 p-6 bg-white/[0.02] border border-white/5 rounded-[2.5rem] hover:bg-white/[0.05] transition-all group">
-                                      <AvatarDisplay profile={p} className="h-14 w-14 group-hover:scale-110 transition-transform" />
+                                      <div className="relative">
+                                        <AvatarDisplay profile={p} className="h-14 w-14 group-hover:scale-110 transition-transform" />
+                                        <div className={`absolute bottom-0 right-0 w-4 h-4 rounded-full border-4 border-[#030303] ${isUserOnline(p.id) ? 'bg-emerald-500 animate-pulse' : 'bg-zinc-600'}`} />
+                                      </div>
                                       <div className="flex-1 text-left">
                                         <p className="font-black text-lg uppercase italic font-accent">{p.username}</p>
                                         <div className="flex items-center gap-2">
-                                            <div className={`w-1.5 h-1.5 rounded-full ${onlineUsers.has(p.id) ? 'bg-emerald-500 animate-pulse' : 'bg-white/10'}`} />
-                                            <p className="text-[10px] font-bold uppercase tracking-widest text-white/30">{onlineUsers.has(p.id) ? 'Online' : 'Offline'}</p>
-
+                                            <p className={`text-[10px] font-bold uppercase tracking-widest ${isUserOnline(p.id) ? 'text-emerald-500' : 'text-white/30'}`}>
+                                              {isUserOnline(p.id) ? 'Online' : 'Offline'}
+                                            </p>
                                         </div>
                                       </div>
                                       <ChevronRight className="w-5 h-5 text-white/10 group-hover:text-indigo-400 group-hover:translate-x-1 transition-all" />
@@ -553,7 +554,7 @@ export function UserDashboardView({ session, privateKey }: UserDashboardViewProp
                               session={session} 
                               privateKey={privateKey} 
                               initialContact={selectedContact} 
-                              isPartnerOnline={onlineUsers.has(selectedContact.id)}
+                              isPartnerOnline={isUserOnline(selectedContact.id)}
                               onBack={() => setSelectedContact(null)}
                               onInitiateCall={(c, m) => setActiveCall({ contact: c, mode: m, isInitiator: true })} 
                             />
@@ -567,11 +568,14 @@ export function UserDashboardView({ session, privateKey }: UserDashboardViewProp
                   </motion.div>
                 )}
               {activeView === "calls" && (
-                <motion.div key="calls" initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} className="h-full p-8">
+                <motion.div key="calls" initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} className="h-full p-8 overflow-y-auto">
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     {profiles.map(p => (
                       <div key={p.id} className="p-6 bg-white/[0.02] border border-white/5 rounded-3xl flex flex-col items-center gap-4">
-                        <AvatarDisplay profile={p} className="h-16 w-16" />
+                        <div className="relative">
+                          <AvatarDisplay profile={p} className="h-16 w-16" />
+                          <div className={`absolute bottom-0 right-0 w-4 h-4 rounded-full border-4 border-[#030303] ${isUserOnline(p.id) ? 'bg-emerald-500' : 'bg-zinc-600'}`} />
+                        </div>
                         <p className="font-black text-lg uppercase font-accent">{p.username}</p>
                         <div className="flex gap-2 w-full">
                           <Button onClick={() => setActiveCall({ contact: p, mode: "voice", isInitiator: true })} className="flex-1 bg-emerald-600 font-accent uppercase text-[10px]">Voice</Button>
@@ -633,7 +637,6 @@ export function UserDashboardView({ session, privateKey }: UserDashboardViewProp
                             />
                           )}
                         </button>
-
                 );
               })}
             </nav>
