@@ -59,7 +59,6 @@ export function UserDashboardView({ session, privateKey }: UserDashboardViewProp
     }, []);
 
       useEffect(() => {
-        // Register Service Worker for mobile/background notifications
         if ('serviceWorker' in navigator) {
           navigator.serviceWorker.register('/sw.js').then((registration) => {
             console.log('Service Worker registered with scope:', registration.scope);
@@ -81,7 +80,6 @@ export function UserDashboardView({ session, privateKey }: UserDashboardViewProp
             if (document.visibilityState === 'visible') {
               updateOnlineStatus(true);
             } else {
-              // Quick update for offline status
               setTimeout(() => {
                 if (document.visibilityState !== 'visible') {
                   updateOnlineStatus(false);
@@ -91,14 +89,11 @@ export function UserDashboardView({ session, privateKey }: UserDashboardViewProp
           };
 
         const handleFocus = () => updateOnlineStatus(true);
-        // Removed aggressive blur tracking as it causes "offline" when user is still looking
-        // const handleBlur = () => updateOnlineStatus(false);
 
         document.addEventListener('visibilitychange', handleVisibilityChange);
         window.addEventListener('focus', handleFocus);
         window.addEventListener('beforeunload', () => updateOnlineStatus(false));
 
-        // Initial status
         if (document.visibilityState === 'visible') {
           updateOnlineStatus(true);
         }
@@ -109,7 +104,7 @@ export function UserDashboardView({ session, privateKey }: UserDashboardViewProp
           }
           fetchUnviewedSnapshots();
           supabase.rpc('purge_viewed_content');
-        }, 10000); // Reduced to 10s for more "immediate" status
+        }, 10000);
 
         if ("Notification" in window && Notification.permission === "default") {
           Notification.requestPermission();
@@ -125,7 +120,24 @@ export function UserDashboardView({ session, privateKey }: UserDashboardViewProp
       }, [session.user.id]);
 
       async function updateOnlineStatus(online: boolean = true) {
-        // No-op here, handled by Home component
+        if (!session?.user?.id) return;
+
+        if (presenceChannelRef.current) {
+          if (online) {
+            presenceChannelRef.current.track({
+              user_id: session.user.id,
+              online_at: new Date().toISOString(),
+            });
+          } else {
+            presenceChannelRef.current.untrack();
+          }
+        }
+
+        if (online) {
+          await supabase.from("profiles").update({
+            updated_at: new Date().toISOString(),
+          }).eq("id", session.user.id);
+        }
       }
 
 
@@ -185,12 +197,10 @@ export function UserDashboardView({ session, privateKey }: UserDashboardViewProp
     }
 
     async function showNotification(title: string, options?: NotificationOptions) {
-      // Play sound
       if (notificationSound.current) {
         notificationSound.current.play().catch(e => console.error("Sound play failed:", e));
       }
 
-      // Show browser notification via Service Worker if available for better mobile/background support
       if ('serviceWorker' in navigator && 'Notification' in window && Notification.permission === "granted") {
         const registration = await navigator.serviceWorker.ready;
         registration.showNotification(title, {
