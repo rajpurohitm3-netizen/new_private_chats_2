@@ -41,6 +41,16 @@ export default function Home() {
 
     trackPresence();
 
+    const heartbeat = setInterval(async () => {
+      if (document.visibilityState === "visible") {
+        await channel.track({
+          user_id: session.user.id,
+          online_at: new Date().toISOString(),
+        });
+        await supabase.from("profiles").update({ updated_at: new Date().toISOString() }).eq("id", session.user.id);
+      }
+    }, 30000); // 30s heartbeat
+
     const handleVisibilityChange = () => {
       if (document.visibilityState === "visible") {
         channel.track({
@@ -53,6 +63,7 @@ export default function Home() {
     document.addEventListener("visibilitychange", handleVisibilityChange);
 
     return () => {
+      clearInterval(heartbeat);
       document.removeEventListener("visibilitychange", handleVisibilityChange);
       channel.unsubscribe();
     };
@@ -285,7 +296,7 @@ export default function Home() {
                   <div className="flex flex-col">
                     <h1 className="text-xl font-black italic tracking-tighter uppercase text-white leading-none">Chatify <span className="text-indigo-400">v2</span></h1>
                     <div className="flex items-center gap-2 mt-1">
-                        <div className="w-1 h-1 bg-blue-500 rounded-full animate-pulse shadow-[0_0_10px_rgba(59,130,246,0.5)]" />
+                        <div className="w-1 h-1 bg-emerald-500 rounded-full animate-pulse shadow-[0_0_10px_rgba(16,185,129,0.5)]" />
                         <span className="text-[8px] font-medium uppercase tracking-[0.4em] text-white/40">Secure Node</span>
                     </div>
                   </div>

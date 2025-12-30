@@ -256,6 +256,19 @@ export function Chat({ session, privateKey, initialContact, isPartnerOnline, onB
         }
       });
 
+    // Handle isTyping updates
+    const updateTypingStatus = async () => {
+      if (channel) {
+        await channel.track({
+          online_at: new Date().toISOString(),
+          current_chat_id: initialContact.id,
+          is_typing: isTyping
+        });
+      }
+    };
+    
+    updateTypingStatus();
+
     return () => {
       channel.unsubscribe();
     };
@@ -582,16 +595,11 @@ export function Chat({ session, privateKey, initialContact, isPartnerOnline, onB
   if (!initialContact) return null;
 
   return (
-    <div className="flex flex-col h-full bg-[#030303] relative overflow-hidden select-none" onContextMenu={(e) => e.preventDefault()}>
-      <style jsx global>{`
-        @media print { body { display: none; } }
-        .no-screenshot {
-          -webkit-touch-callout: none;
-          -webkit-user-select: none;
-          user-select: none;
-        }
-      `}</style>
-
+    <div 
+      className="flex flex-col h-full bg-[#030303] relative overflow-hidden select-none" 
+      onContextMenu={(e) => e.preventDefault()}
+      style={{ WebkitTouchCallout: 'none', WebkitUserSelect: 'none', userSelect: 'none' } as any}
+    >
       {/* Header */}
       <header className="h-20 border-b border-white/5 bg-black/40 backdrop-blur-3xl flex items-center justify-between px-6 z-20 shrink-0">
           <div className="flex items-center gap-4">
@@ -773,6 +781,25 @@ export function Chat({ session, privateKey, initialContact, isPartnerOnline, onB
 
         <div ref={messagesEndRef} />
       </div>
+
+      {/* Typing Indicator */}
+      <AnimatePresence>
+        {partnerPresence.isTyping && (
+          <motion.div 
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 10 }}
+            className="absolute bottom-28 left-6 flex items-center gap-2 z-20 bg-black/40 backdrop-blur-md px-3 py-1.5 rounded-full border border-blue-500/20"
+          >
+            <div className="flex gap-1">
+              <span className="w-1.5 h-1.5 bg-blue-500 rounded-full animate-bounce [animation-delay:-0.3s]"></span>
+              <span className="w-1.5 h-1.5 bg-blue-500 rounded-full animate-bounce [animation-delay:-0.15s]"></span>
+              <span className="w-1.5 h-1.5 bg-blue-500 rounded-full animate-bounce"></span>
+            </div>
+            <span className="text-[10px] font-black uppercase tracking-widest text-blue-400 italic">Typing...</span>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Input Area */}
       <footer className="p-6 bg-black/40 backdrop-blur-3xl border-t border-white/5 relative z-30 shrink-0">
