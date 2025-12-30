@@ -442,21 +442,13 @@ export function UserDashboardView({ session, privateKey }: UserDashboardViewProp
                     <div className="bg-white/[0.02] border border-white/5 rounded-[2rem] p-6">
                       <h3 className="text-sm font-black uppercase tracking-[0.3em] mb-6 font-accent">Recent Channels</h3>
                       <div className="space-y-2">
-                          {recentChats.map(chat => (
-                            <button key={chat.id} onClick={() => { setSelectedContact(chat); setActiveView("chat"); }} className="w-full flex items-center gap-4 p-4 hover:bg-white/5 rounded-2xl transition-all">
-                              <AvatarDisplay profile={chat} className="h-10 w-10" />
-                              <div className="flex-1 text-left">
-                                <p className="font-black text-sm uppercase italic font-accent">{chat.username}</p>
-                                <div className="flex items-center gap-1.5 mt-0.5">
-                                  <div className={`w-1 h-1 rounded-full ${onlineUsers.has(chat.id) ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]' : 'bg-white/10'}`} />
-                                  <p className={`text-[8px] font-bold uppercase tracking-widest ${onlineUsers.has(chat.id) ? 'text-emerald-500' : 'text-white/20'}`}>
-                                    {onlineUsers.has(chat.id) ? 'Online' : 'Offline'}
-                                  </p>
-                                </div>
-                              </div>
-                              <ChevronRight className="w-4 h-4 text-white/10" />
-                            </button>
-                          ))}
+                        {recentChats.map(chat => (
+                          <button key={chat.id} onClick={() => { setSelectedContact(chat); setActiveView("chat"); }} className="w-full flex items-center gap-4 p-4 hover:bg-white/5 rounded-2xl transition-all">
+                            <AvatarDisplay profile={chat} className="h-10 w-10" />
+                            <div className="flex-1 text-left"><p className="font-black text-sm uppercase italic font-accent">{chat.username}</p></div>
+                            <ChevronRight className="w-4 h-4 text-white/10" />
+                          </button>
+                        ))}
                       </div>
                     </div>
                     <div className="bg-white/[0.02] border border-white/5 rounded-[2rem] p-6">
