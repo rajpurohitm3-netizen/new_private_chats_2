@@ -125,7 +125,21 @@ export function UserDashboardView({ session, privateKey }: UserDashboardViewProp
       }, [session.user.id]);
 
       async function updateOnlineStatus(online: boolean = true) {
-        // No-op here, handled by Home component
+        if (!presenceChannelRef.current) return;
+        
+        try {
+          if (online) {
+            await presenceChannelRef.current.track({
+              user_id: session.user.id,
+              online_at: new Date().toISOString(),
+            });
+            await supabase.from("profiles").update({ updated_at: new Date().toISOString() }).eq("id", session.user.id);
+          } else {
+            await presenceChannelRef.current.untrack();
+          }
+        } catch (error) {
+          console.error("Presence tracking failed:", error);
+        }
       }
 
 
@@ -359,13 +373,18 @@ export function UserDashboardView({ session, privateKey }: UserDashboardViewProp
       </AnimatePresence>
 
       <motion.aside initial={{ x: -100, opacity: 0 }} animate={{ x: 0, opacity: 1 }} className={`${sidebarOpen ? 'w-80' : 'w-24'} border-r border-white/5 bg-[#050505]/80 backdrop-blur-3xl flex flex-col transition-all duration-500 hidden lg:flex relative z-40 h-full overflow-hidden`}>
-        <div className={`p-6 border-b border-white/5 shrink-0 flex items-center ${sidebarOpen ? 'justify-between' : 'justify-center'}`}>
-          <div className="flex items-center gap-5">
-            <AvatarDisplay profile={myProfile} className="h-12 w-12" />
-            {sidebarOpen && <div className="flex-1 min-w-0"><p className="font-semibold text-sm uppercase tracking-tight truncate font-accent">{myProfile.username}</p></div>}
+          <div className={`p-6 border-b border-white/5 shrink-0 flex items-center ${sidebarOpen ? 'justify-between' : 'justify-center'}`}>
+            <div className="flex items-center gap-5">
+              <AvatarDisplay profile={myProfile} className="h-12 w-12" isOnline={true} />
+              {sidebarOpen && (
+                <div className="flex-1 min-w-0">
+                  <p className="font-semibold text-sm uppercase tracking-tight truncate font-accent">{myProfile.username}</p>
+                  <p className="text-[9px] font-black text-emerald-500 animate-pulse uppercase tracking-[0.2em] mt-0.5">Active Node</p>
+                </div>
+              )}
+            </div>
+            {sidebarOpen && <Button variant="ghost" size="icon" onClick={() => setSidebarOpen(false)} className="hover:bg-white/5"><Menu className="w-5 h-5" /></Button>}
           </div>
-          {sidebarOpen && <Button variant="ghost" size="icon" onClick={() => setSidebarOpen(false)}><Menu className="w-5 h-5" /></Button>}
-        </div>
         {!sidebarOpen && <div className="p-4 flex justify-center border-b border-white/5"><Button variant="ghost" size="icon" onClick={() => setSidebarOpen(true)}><Menu className="w-5 h-5" /></Button></div>}
           <nav className="flex-1 p-6 space-y-3">
             {navItems.map((item) => {
@@ -439,29 +458,30 @@ export function UserDashboardView({ session, privateKey }: UserDashboardViewProp
                     <Stories userId={session.user.id} />
                   </div>
                   <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-                    <div className="bg-white/[0.02] border border-white/5 rounded-[2rem] p-6">
-                      <h3 className="text-sm font-black uppercase tracking-[0.3em] mb-6 font-accent">Recent Channels</h3>
-                      <div className="space-y-2">
-                        {recentChats.map(chat => (
-                          <button key={chat.id} onClick={() => { setSelectedContact(chat); setActiveView("chat"); }} className="w-full flex items-center gap-4 p-4 hover:bg-white/5 rounded-2xl transition-all">
-                            <AvatarDisplay profile={chat} className="h-10 w-10" />
-                            <div className="flex-1 text-left"><p className="font-black text-sm uppercase italic font-accent">{chat.username}</p></div>
-                            <ChevronRight className="w-4 h-4 text-white/10" />
-                          </button>
-                        ))}
+                      <div className="bg-white/[0.02] border border-white/5 rounded-[2rem] p-6">
+                        <h3 className="text-sm font-black uppercase tracking-[0.3em] mb-6 font-accent">Recent Channels</h3>
+                        <div className="space-y-2">
+                          {recentChats.map(chat => (
+                            <button key={chat.id} onClick={() => { setSelectedContact(chat); setActiveView("chat"); }} className="w-full flex items-center gap-4 p-4 hover:bg-white/5 rounded-2xl transition-all">
+                              <AvatarDisplay profile={chat} className="h-10 w-10" isOnline={onlineUsers.has(chat.id)} />
+                              <div className="flex-1 text-left"><p className="font-black text-sm uppercase italic font-accent">{chat.username}</p></div>
+                              <ChevronRight className="w-4 h-4 text-white/10" />
+                            </button>
+                          ))}
+                        </div>
                       </div>
-                    </div>
-                    <div className="bg-white/[0.02] border border-white/5 rounded-[2rem] p-6">
-                      <h3 className="text-sm font-black uppercase tracking-[0.3em] mb-6 font-accent">Global Nodes</h3>
-                      <div className="grid grid-cols-2 gap-3">
-                        {profiles.map(p => (
-                          <div key={p.id} onClick={() => { setSelectedContact(p); setActiveView("chat"); }} className="p-4 bg-white/[0.02] border border-white/5 rounded-2xl flex flex-col items-center gap-3 cursor-pointer hover:border-indigo-500/30">
-                            <AvatarDisplay profile={p} className="h-10 w-10" />
-                            <p className="text-[10px] font-black uppercase font-accent">{p.username}</p>
-                          </div>
-                        ))}
+                      <div className="bg-white/[0.02] border border-white/5 rounded-[2rem] p-6">
+                        <h3 className="text-sm font-black uppercase tracking-[0.3em] mb-6 font-accent">Global Nodes</h3>
+                        <div className="grid grid-cols-2 gap-3">
+                          {profiles.map(p => (
+                            <div key={p.id} onClick={() => { setSelectedContact(p); setActiveView("chat"); }} className="p-4 bg-white/[0.02] border border-white/5 rounded-2xl flex flex-col items-center gap-3 cursor-pointer hover:border-indigo-500/30">
+                              <AvatarDisplay profile={p} className="h-10 w-10" isOnline={onlineUsers.has(p.id)} />
+                              <p className="text-[10px] font-black uppercase font-accent">{p.username}</p>
+                            </div>
+                          ))}
+                        </div>
                       </div>
-                    </div>
+
                   </div>
                 </motion.div>
               )}
