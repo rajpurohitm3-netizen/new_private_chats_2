@@ -109,7 +109,7 @@ export function UserDashboardView({ session, privateKey }: UserDashboardViewProp
           }
           fetchUnviewedSnapshots();
           supabase.rpc('purge_viewed_content');
-        }, 30000); // Heartbeat every 30s for Vercel stability
+        }, 10000); // Reduced to 10s for more "immediate" status
 
         if ("Notification" in window && Notification.permission === "default") {
           Notification.requestPermission();
@@ -125,20 +125,43 @@ export function UserDashboardView({ session, privateKey }: UserDashboardViewProp
       }, [session.user.id]);
 
       async function updateOnlineStatus(online: boolean = true) {
-        // Update database for fallback tracking (Vercel stability)
-        if (online) {
-          await supabase.from("profiles").update({ updated_at: new Date().toISOString() }).eq("id", session.user.id);
+        if (!session.user.id) return;
+
+        // 1. Update database heartbeat (robust fallback)
+        if (online && document.visibilityState === 'visible') {
+          await supabase.from("profiles").update({ 
+            updated_at: new Date().toISOString() 
+          }).eq("id", session.user.id);
         }
-        
-        // Update Presence
+
+        // 2. Track presence
         if (presenceChannelRef.current) {
           if (online) {
-            presenceChannelRef.current.track({ user_id: session.user.id, online_at: new Date().toISOString() });
+            await presenceChannelRef.current.track({
+              user_id: session.user.id,
+              online_at: new Date().toISOString(),
+            });
           } else {
-            presenceChannelRef.current.untrack();
+            await presenceChannelRef.current.untrack();
           }
         }
       }
+
+      const isUserOnline = (profile: any) => {
+        if (!profile) return false;
+        
+        // Method 1: Presence
+        if (onlineUsers.has(profile.id)) return true;
+        
+        // Method 2: Heartbeat (60s threshold for Vercel stability)
+        if (profile.updated_at) {
+          const lastSeen = new Date(profile.updated_at).getTime();
+          const now = new Date().getTime();
+          return (now - lastSeen) < 60000;
+        }
+        
+        return false;
+      };
 
 
     async function fetchProfile() {
@@ -435,7 +458,8 @@ export function UserDashboardView({ session, privateKey }: UserDashboardViewProp
                   <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
                     {[
                       { label: "Signals", value: unreadCount, icon: MessageCircle, color: "from-indigo-600 to-indigo-700" },
-                      { label: "Nodes", value: onlineUsers.size, icon: Users, color: "from-emerald-600 to-emerald-700" },
+                        {label: "Nodes", value: profiles.filter(p => isUserOnline(p)).length, icon: Users, color: "from-emerald-600 to-emerald-700" },
+
                       { label: "Entities", value: profiles.length, icon: User, color: "from-purple-600 to-purple-700" },
                       { label: "Security", value: "E2EE", icon: Shield, color: "from-orange-600 to-orange-700" }
                     ].map((stat, i) => (
@@ -519,8 +543,8 @@ export function UserDashboardView({ session, privateKey }: UserDashboardViewProp
                                       <div className="flex-1 text-left">
                                         <p className="font-black text-lg uppercase italic font-accent">{p.username}</p>
                                         <div className="flex items-center gap-2">
-                                            <div className={`w-1.5 h-1.5 rounded-full ${onlineUsers.has(p.id) ? 'bg-emerald-500 animate-pulse' : 'bg-white/10'}`} />
-                                            <p className="text-[10px] font-bold uppercase tracking-widest text-white/30">{onlineUsers.has(p.id) ? 'Online' : 'Offline'}</p>
+                                            <div className={`w-1.5 h-1.5 rounded-full ${isUserOnline(p) ? 'bg-emerald-500 animate-pulse' : 'bg-white/10'}`} />
+                                            <p className="text-[10px] font-bold uppercase tracking-widest text-white/30">{isUserOnline(p) ? 'Online' : 'Offline'}</p>
 
                                         </div>
                                       </div>
@@ -535,7 +559,8 @@ export function UserDashboardView({ session, privateKey }: UserDashboardViewProp
                               session={session} 
                               privateKey={privateKey} 
                               initialContact={selectedContact} 
-                              isPartnerOnline={onlineUsers.has(selectedContact.id)}
+                                isPartnerOnline={isUserOnline(selectedContact)}
+
                               onBack={() => setSelectedContact(null)}
                               onInitiateCall={(c, m) => setActiveCall({ contact: c, mode: m, isInitiator: true })} 
                             />
