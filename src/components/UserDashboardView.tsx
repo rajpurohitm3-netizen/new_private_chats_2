@@ -259,7 +259,11 @@ export function UserDashboardView({ session, privateKey }: UserDashboardViewProp
         const online = new Set<string>();
         Object.values(state).forEach((users: any) => { users.forEach((u: any) => online.add(u.user_id)); });
         setOnlineUsers(online);
-      }).subscribe();
+      }).subscribe(async (status) => {
+        if (status === 'SUBSCRIBED') {
+          await presenceChannel.track({ user_id: session.user.id, online_at: new Date().toISOString() });
+        }
+      });
 
       presenceChannelRef.current = presenceChannel;
 
@@ -311,7 +315,8 @@ export function UserDashboardView({ session, privateKey }: UserDashboardViewProp
                 <AvatarDisplay profile={myProfile} className="h-12 w-12" />
                 <div className="flex-1 min-w-0">
                   <p className="font-semibold text-sm uppercase tracking-tight truncate leading-tight font-accent">{myProfile.username}</p>
-                  <p className="text-[9px] font-medium text-emerald-500/80 uppercase tracking-wider mt-0.5 font-sans">Online</p>
+                    <p className="text-[9px] font-medium text-blue-500/80 uppercase tracking-wider mt-0.5 font-sans">Online</p>
+
                 </div>
               </div>
                 <nav className="flex-1 space-y-1">
@@ -507,7 +512,8 @@ export function UserDashboardView({ session, privateKey }: UserDashboardViewProp
                                       <div className="flex-1 text-left">
                                         <p className="font-black text-lg uppercase italic font-accent">{p.username}</p>
                                         <div className="flex items-center gap-2">
-                                            <div className={`w-1.5 h-1.5 rounded-full ${onlineUsers.has(p.id) ? 'bg-emerald-500 animate-pulse' : 'bg-white/10'}`} />
+                                              <div className={`w-1.5 h-1.5 rounded-full ${onlineUsers.has(p.id) ? 'bg-blue-500 animate-pulse' : 'bg-white/10'}`} />
+
                                             <p className="text-[10px] font-bold uppercase tracking-widest text-white/30">{onlineUsers.has(p.id) ? 'Online' : 'Offline'}</p>
 
                                         </div>

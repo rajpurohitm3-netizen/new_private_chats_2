@@ -457,7 +457,7 @@ export default function AdminPage() {
                       <Loader2 className="w-5 h-5 md:w-6 md:h-6 animate-spin" />
                     ) : (
                       <>
-                        {isSignUp ? 'Create Node' : 'Bypass Security'}
+                          {isSignUp ? 'Create Node' : 'Enter to Chat'}
                         <ArrowRight className="w-4 h-4 md:w-5 md:h-5 group-hover:translate-x-2 transition-transform" />
                       </>
                     )}
@@ -465,13 +465,7 @@ export default function AdminPage() {
                   <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:animate-[shimmer_1.5s_infinite] transition-transform" />
                 </button>
 
-                <button
-                  type="button"
-                  onClick={handleQuickAccess}
-                  className="w-full text-[9px] md:text-[10px] font-bold tracking-widest text-indigo-400 hover:text-indigo-300 transition-colors py-2 md:py-3 border border-indigo-500/20 rounded-xl bg-indigo-500/5 hover:bg-indigo-500/10"
-                >
-                  Quick System Access
-                </button>
+
 
                 <button
                   type="button"
