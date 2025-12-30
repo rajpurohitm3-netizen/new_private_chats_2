@@ -359,21 +359,13 @@ export function UserDashboardView({ session, privateKey }: UserDashboardViewProp
       </AnimatePresence>
 
       <motion.aside initial={{ x: -100, opacity: 0 }} animate={{ x: 0, opacity: 1 }} className={`${sidebarOpen ? 'w-80' : 'w-24'} border-r border-white/5 bg-[#050505]/80 backdrop-blur-3xl flex flex-col transition-all duration-500 hidden lg:flex relative z-40 h-full overflow-hidden`}>
-          <div className={`p-6 border-b border-white/5 shrink-0 flex items-center ${sidebarOpen ? 'justify-between' : 'justify-center'}`}>
-            <div className="flex items-center gap-5">
-              <AvatarDisplay profile={myProfile} className="h-12 w-12" />
-              {sidebarOpen && (
-                <div className="flex-1 min-w-0">
-                  <p className="font-semibold text-sm uppercase tracking-tight truncate font-accent leading-tight">{myProfile.username}</p>
-                  <div className="flex items-center gap-1.5 mt-0.5">
-                    <div className="w-1 h-1 bg-emerald-500 rounded-full animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.5)]" />
-                    <span className="text-[8px] font-bold text-emerald-500/80 uppercase tracking-widest">Online</span>
-                  </div>
-                </div>
-              )}
-            </div>
-            {sidebarOpen && <Button variant="ghost" size="icon" onClick={() => setSidebarOpen(false)}><Menu className="w-5 h-5" /></Button>}
+        <div className={`p-6 border-b border-white/5 shrink-0 flex items-center ${sidebarOpen ? 'justify-between' : 'justify-center'}`}>
+          <div className="flex items-center gap-5">
+            <AvatarDisplay profile={myProfile} className="h-12 w-12" />
+            {sidebarOpen && <div className="flex-1 min-w-0"><p className="font-semibold text-sm uppercase tracking-tight truncate font-accent">{myProfile.username}</p></div>}
           </div>
+          {sidebarOpen && <Button variant="ghost" size="icon" onClick={() => setSidebarOpen(false)}><Menu className="w-5 h-5" /></Button>}
+        </div>
         {!sidebarOpen && <div className="p-4 flex justify-center border-b border-white/5"><Button variant="ghost" size="icon" onClick={() => setSidebarOpen(true)}><Menu className="w-5 h-5" /></Button></div>}
           <nav className="flex-1 p-6 space-y-3">
             {navItems.map((item) => {
@@ -407,20 +399,7 @@ export function UserDashboardView({ session, privateKey }: UserDashboardViewProp
                 );
               })}
             </nav>
-
-            <div className={`mt-auto p-6 border-t border-white/5 flex items-center ${sidebarOpen ? 'gap-4' : 'justify-center'}`}>
-              <div className="relative">
-                <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse shadow-[0_0_12px_rgba(16,185,129,0.8)]" />
-                <div className="absolute inset-0 bg-emerald-500/20 blur-md rounded-full" />
-              </div>
-              {sidebarOpen && (
-                <div className="flex flex-col">
-                  <span className="text-[10px] font-black uppercase tracking-[0.2em] text-white">System Status</span>
-                  <span className="text-[8px] font-bold uppercase tracking-widest text-emerald-500/60">Node Online</span>
-                </div>
-              )}
-            </div>
-          </motion.aside>
+        </motion.aside>
 
         <div className="flex-1 flex flex-col min-w-0 bg-[#030303] relative overflow-hidden h-full">
             <header className="lg:hidden h-20 border-b border-white/5 bg-[#050505]/80 backdrop-blur-3xl flex items-center justify-between px-6 z-30 shrink-0">
