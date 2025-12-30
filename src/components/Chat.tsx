@@ -35,14 +35,7 @@ export function Chat({ session, privateKey, initialContact, isPartnerOnline, onB
     isOnline: boolean;
     isInChat: boolean;
     isTyping: boolean;
-    lastHeartbeat?: string;
   }>({ isOnline: false, isInChat: false, isTyping: false });
-
-  // Computed online status considering both presence and heartbeat
-  const isActuallyOnline = isPartnerOnline || partnerPresence.isOnline || (
-    partnerPresence.lastHeartbeat && (new Date().getTime() - new Date(partnerPresence.lastHeartbeat).getTime()) < 60000
-  );
-
   const [isFocused, setIsFocused] = useState(true);
   const [showSnapshotView, setShowSnapshotView] = useState<any>(null);
   const [snapshotViewMode, setSnapshotViewMode] = useState<"view" | "save">("view");
@@ -51,6 +44,7 @@ export function Chat({ session, privateKey, initialContact, isPartnerOnline, onB
   const [longPressedMessage, setLongPressedMessage] = useState<any>(null);
   const [showMenu, setShowMenu] = useState(false);
   
+  // Persistence for auto-delete mode
   const [autoDeleteMode, setAutoDeleteMode] = useState<"none" | "view" | "3h">(() => {
     if (typeof window !== "undefined") {
       const saved = localStorage.getItem(`chatify_auto_delete_${session.user.id}`);
@@ -67,6 +61,7 @@ export function Chat({ session, privateKey, initialContact, isPartnerOnline, onB
   const videoRef = useRef<HTMLVideoElement>(null);
   const [stream, setStream] = useState<MediaStream | null>(null);
   
+  // Camera stream handling to prevent black screen
   useEffect(() => {
     let active = true;
     if (showCamera && stream && videoRef.current) {
@@ -206,6 +201,8 @@ export function Chat({ session, privateKey, initialContact, isPartnerOnline, onB
     setLongPressedMessage(null);
   }
 
+  const [presenceChannel, setPresenceChannel] = useState<any>(null);
+
   useEffect(() => {
     if (!initialContact || !session.user) return;
 
@@ -220,13 +217,6 @@ export function Chat({ session, privateKey, initialContact, isPartnerOnline, onB
       },
     });
 
-    // Subscribe to partner profile for heartbeat fallback
-    const profileSub = supabase.channel(`partner-profile-${initialContact.id}`)
-      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'profiles', filter: `id=eq.${initialContact.id}` }, (payload) => {
-        setPartnerPresence(prev => ({ ...prev, lastHeartbeat: payload.new.updated_at }));
-      })
-      .subscribe();
-
     channel
       .on('presence', { event: 'sync' }, () => {
         const state = channel.presenceState();
@@ -234,14 +224,28 @@ export function Chat({ session, privateKey, initialContact, isPartnerOnline, onB
         
         if (partnerState && partnerState.length > 0) {
           const latest = partnerState[partnerState.length - 1];
-          setPartnerPresence(prev => ({
-            ...prev,
+          setPartnerPresence({
             isOnline: true,
             isInChat: latest.current_chat_id === session.user.id,
             isTyping: latest.is_typing === true,
-          }));
+          });
         } else {
-          setPartnerPresence(prev => ({ ...prev, isOnline: false, isInChat: false, isTyping: false }));
+          setPartnerPresence({ isOnline: false, isInChat: false, isTyping: false });
+        }
+      })
+      .on('presence', { event: 'join' }, ({ key, newPresences }) => {
+        if (key === initialContact.id) {
+          const latest = newPresences[newPresences.length - 1];
+          setPartnerPresence({
+            isOnline: true,
+            isInChat: latest.current_chat_id === session.user.id,
+            isTyping: latest.is_typing === true,
+          });
+        }
+      })
+      .on('presence', { event: 'leave' }, ({ key }) => {
+        if (key === initialContact.id) {
+          setPartnerPresence({ isOnline: false, isInChat: false, isTyping: false });
         }
       })
       .subscribe(async (status) => {
@@ -254,11 +258,23 @@ export function Chat({ session, privateKey, initialContact, isPartnerOnline, onB
         }
       });
 
+    setPresenceChannel(channel);
+
     return () => {
       channel.unsubscribe();
-      profileSub.unsubscribe();
     };
-  }, [initialContact, session.user, isTyping]);
+  }, [initialContact, session.user]);
+
+  // Track typing status separately to avoid full channel resubscription
+  useEffect(() => {
+    if (presenceChannel) {
+      presenceChannel.track({
+        online_at: new Date().toISOString(),
+        current_chat_id: initialContact.id,
+        is_typing: isTyping
+      });
+    }
+  }, [isTyping, presenceChannel, initialContact.id]);
 
   useEffect(() => {
     const timeout = setTimeout(() => {
@@ -368,7 +384,7 @@ export function Chat({ session, privateKey, initialContact, isPartnerOnline, onB
   }
 
   useEffect(() => {
-    if (isActuallyOnline) {
+    if (partnerPresence.isOnline) {
       const markDelivered = async () => {
         const undelivered = messages.filter(m => m.sender_id === session.user.id && !m.is_delivered);
         if (undelivered.length > 0) {
@@ -381,7 +397,7 @@ export function Chat({ session, privateKey, initialContact, isPartnerOnline, onB
       };
       markDelivered();
     }
-  }, [isActuallyOnline, messages.length]);
+  }, [partnerPresence.isOnline, messages.length]);
 
   async function sendMessage(mediaType: string = "text", mediaUrl: string | null = null) {
     if (!newMessage.trim() && !mediaUrl) return;
@@ -393,8 +409,8 @@ export function Chat({ session, privateKey, initialContact, isPartnerOnline, onB
       media_type: mediaType,
       media_url: mediaUrl,
       is_viewed: false,
-      is_delivered: isActuallyOnline,
-      delivered_at: isActuallyOnline ? new Date().toISOString() : null,
+      is_delivered: partnerPresence.isOnline,
+      delivered_at: partnerPresence.isOnline ? new Date().toISOString() : null,
       expires_at: autoDeleteMode === "3h" ? new Date(Date.now() + 3 * 60 * 60 * 1000).toISOString() : null,
       is_view_once: autoDeleteMode === "view"
     };
@@ -530,6 +546,7 @@ export function Chat({ session, privateKey, initialContact, isPartnerOnline, onB
   };
 
   const openSnapshot = async (message: any) => {
+    // Strictly 2 views limit for receiver
     const views = message.view_count || 0;
     
     if (message.receiver_id === session.user.id && views >= 2) {
@@ -615,9 +632,9 @@ export function Chat({ session, privateKey, initialContact, isPartnerOnline, onB
           <div>
             <h3 className="text-sm font-black italic tracking-tighter uppercase text-white">{initialContact.username}</h3>
       <div className="flex items-center gap-2">
-        <div className={`w-1.5 h-1.5 rounded-full ${isActuallyOnline ? 'bg-blue-500 animate-pulse' : 'bg-zinc-600'}`} />
-        <span className={`text-[8px] font-black uppercase tracking-widest ${isActuallyOnline ? 'text-blue-400' : 'text-zinc-500'}`}>
-          {isActuallyOnline ? 'Online' : 'Offline'}
+        <div className={`w-1.5 h-1.5 rounded-full ${(isPartnerOnline ?? partnerPresence.isOnline) ? 'bg-blue-500 animate-pulse' : 'bg-zinc-600'}`} />
+        <span className={`text-[8px] font-black uppercase tracking-widest ${(isPartnerOnline ?? partnerPresence.isOnline) ? 'text-blue-400' : 'text-zinc-500'}`}>
+          {(isPartnerOnline ?? partnerPresence.isOnline) ? 'Online' : 'Offline'}
         </span>
       </div>
           </div>
@@ -772,33 +789,33 @@ export function Chat({ session, privateKey, initialContact, isPartnerOnline, onB
       <div ref={messagesEndRef} />
     </div>
 
-    {/* Status Indicators (Bottom Left) */}
+    {/* Status Indicators (Bottom Left above input) */}
     <div className="px-6 py-2 flex items-center gap-2 absolute bottom-[100px] left-0 z-20 pointer-events-none">
       <AnimatePresence>
         {partnerPresence.isInChat && (
-          <motion.div
-            initial={{ opacity: 0, x: -10 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: -10 }}
-            className="flex items-center gap-1.5 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-1 rounded-full backdrop-blur-md"
+          <motion.div 
+            initial={{ opacity: 0, x: -10, scale: 0.9 }}
+            animate={{ opacity: 1, x: 0, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.9 }}
+            className="flex items-center gap-2 bg-emerald-500/10 border border-emerald-500/20 px-3 py-1.5 rounded-full backdrop-blur-md shadow-[0_0_20px_rgba(16,185,129,0.1)]"
           >
-            <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.8)]" />
-            <span className="text-[7px] font-black uppercase tracking-widest text-emerald-400">In Chat</span>
+            <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.8)]" />
+            <span className="text-[8px] font-black uppercase tracking-[0.2em] text-emerald-400/80">In Chat</span>
           </motion.div>
         )}
         {partnerPresence.isTyping && (
-          <motion.div
-            initial={{ opacity: 0, x: -10 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: -10 }}
-            className="flex items-center gap-1.5 bg-indigo-500/10 border border-indigo-500/20 px-2.5 py-1 rounded-full backdrop-blur-md"
+          <motion.div 
+            initial={{ opacity: 0, x: -10, scale: 0.9 }}
+            animate={{ opacity: 1, x: 0, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.9 }}
+            className="flex items-center gap-2 bg-indigo-500/10 border border-indigo-500/20 px-3 py-1.5 rounded-full backdrop-blur-md shadow-[0_0_20px_rgba(99,102,241,0.1)]"
           >
-            <div className="flex gap-0.5">
-              <motion.div animate={{ opacity: [0.2, 1, 0.2] }} transition={{ repeat: Infinity, duration: 1, delay: 0 }} className="w-1 h-1 bg-indigo-400 rounded-full" />
-              <motion.div animate={{ opacity: [0.2, 1, 0.2] }} transition={{ repeat: Infinity, duration: 1, delay: 0.2 }} className="w-1 h-1 bg-indigo-400 rounded-full" />
-              <motion.div animate={{ opacity: [0.2, 1, 0.2] }} transition={{ repeat: Infinity, duration: 1, delay: 0.4 }} className="w-1 h-1 bg-indigo-400 rounded-full" />
+            <div className="flex gap-1">
+              <motion.div animate={{ opacity: [0.3, 1, 0.3] }} transition={{ repeat: Infinity, duration: 1 }} className="w-1 h-1 rounded-full bg-indigo-400" />
+              <motion.div animate={{ opacity: [0.3, 1, 0.3] }} transition={{ repeat: Infinity, duration: 1, delay: 0.2 }} className="w-1 h-1 rounded-full bg-indigo-400" />
+              <motion.div animate={{ opacity: [0.3, 1, 0.3] }} transition={{ repeat: Infinity, duration: 1, delay: 0.4 }} className="w-1 h-1 rounded-full bg-indigo-400" />
             </div>
-            <span className="text-[7px] font-black uppercase tracking-widest text-indigo-400">Typing</span>
+            <span className="text-[8px] font-black uppercase tracking-[0.2em] text-indigo-400/80">Typing</span>
           </motion.div>
         )}
       </AnimatePresence>
