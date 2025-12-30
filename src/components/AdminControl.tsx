@@ -79,13 +79,9 @@ function StoriesManagement() {
   }
 
   async function deleteStory(storyId: string) {
-    if (!confirm("Are you sure you want to purge this story from the network? This action is irreversible.")) return;
-    
     const { error } = await supabase.from("stories").delete().eq("id", storyId);
-    if (error) {
-      console.error("Delete error:", error);
-      toast.error("Failed to delete story: " + error.message);
-    } else {
+    if (error) toast.error("Failed to delete story");
+    else {
       toast.success("Story purged from network");
       fetchStories();
       if (selectedStory?.id === storyId) setSelectedStory(null);
@@ -201,25 +197,16 @@ function StoriesManagement() {
                   </button>
                 </div>
                 
-                  <div className="flex-1 p-6 md:p-10 flex flex-col min-h-0 overflow-hidden">
-                    <div className="flex items-center justify-between mb-8 pb-6 border-b border-white/5 shrink-0">
-                      <div className="flex items-center gap-4">
-                        <AvatarDisplay profile={selectedStory.profiles} className="w-14 h-14" />
-                        <div>
-                          <h4 className="text-xl font-black italic text-white tracking-tighter">
-                            {selectedStory.profiles.full_name || selectedStory.profiles.username}
-                          </h4>
-                          <p className="text-[10px] text-white/40 font-bold uppercase tracking-widest mt-1">@{selectedStory.profiles.username}</p>
-                        </div>
-                      </div>
-                      <button 
-                        onClick={() => deleteStory(selectedStory.id)}
-                        className="flex items-center gap-2 px-6 py-3 bg-red-500/10 hover:bg-red-500 text-red-500 hover:text-white rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                        Purge Story
-                      </button>
+                <div className="flex-1 p-6 md:p-10 flex flex-col min-h-0 overflow-hidden">
+                  <div className="flex items-center gap-4 mb-8 pb-6 border-b border-white/5 shrink-0">
+                    <AvatarDisplay profile={selectedStory.profiles} className="w-14 h-14" />
+                    <div>
+                      <h4 className="text-xl font-black italic text-white tracking-tighter">
+                        {selectedStory.profiles.full_name || selectedStory.profiles.username}
+                      </h4>
+                      <p className="text-[10px] text-white/40 font-bold uppercase tracking-widest mt-1">@{selectedStory.profiles.username}</p>
                     </div>
+                  </div>
 
                   <div className="flex-1 overflow-y-auto custom-scrollbar pr-2">
                     <div className="flex items-center gap-2 mb-6">
