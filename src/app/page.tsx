@@ -21,10 +21,18 @@ export default function Home() {
   const [otpVerified, setOtpVerified] = useState(false);
   const [isAppUnlocked, setIsAppUnlocked] = useState(false);
 
+  const [onlineNodesCount, setOnlineNodesCount] = useState(0);
+
   useEffect(() => {
     if (!session?.user) return;
 
-    const channel = supabase.channel("online-users");
+    const channel = supabase.channel("online-users", {
+      config: {
+        presence: {
+          key: session.user.id,
+        },
+      },
+    });
     
     const trackPresence = async () => {
       await channel.subscribe(async (status) => {
@@ -41,6 +49,12 @@ export default function Home() {
 
     trackPresence();
 
+    channel.on("presence", { event: "sync" }, () => {
+      const state = channel.presenceState();
+      const count = Object.keys(state).length;
+      setOnlineNodesCount(count);
+    });
+
     const handleVisibilityChange = () => {
       if (document.visibilityState === "visible") {
         channel.track({
@@ -52,8 +66,16 @@ export default function Home() {
 
     document.addEventListener("visibilitychange", handleVisibilityChange);
 
+    // Heartbeat every 15 seconds
+    const heartbeat = setInterval(async () => {
+      if (document.visibilityState === "visible") {
+        await supabase.from("profiles").update({ updated_at: new Date().toISOString() }).eq("id", session.user.id);
+      }
+    }, 15000);
+
     return () => {
       document.removeEventListener("visibilitychange", handleVisibilityChange);
+      clearInterval(heartbeat);
       channel.unsubscribe();
     };
   }, [session]);
@@ -164,22 +186,6 @@ export default function Home() {
     sessionStorage.setItem(`otp_verified_${session.user.id}`, 'true');
     setOtpVerified(true);
   }
-
-  const [onlineNodesCount, setOnlineNodesCount] = useState(0);
-
-  useEffect(() => {
-    const channel = supabase.channel("online-users-count")
-      .on("presence", { event: "sync" }, () => {
-        const state = channel.presenceState();
-        const count = Object.keys(state).length;
-        setOnlineNodesCount(count);
-      })
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, []);
 
   const handleAppUnlock = () => {
     sessionStorage.setItem("app_unlocked", "true");
@@ -375,7 +381,7 @@ export default function Home() {
                             </div>
                         ))}
                     </div>
-                    <p className="text-[7px] font-medium uppercase tracking-[0.2em] text-white/30">{onlineNodesCount > 0 ? `${onlineNodesCount} nodes active` : '12k+ nodes synced'}</p>
+                    <p className="text-[7px] font-medium uppercase tracking-[0.2em] text-white/30">12k+ nodes synced</p>
                   </div>
                 </div>
                 
