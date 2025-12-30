@@ -52,7 +52,44 @@ export function UserDashboardView({ session, privateKey }: UserDashboardViewProp
     const [systemConfig, setSystemConfig] = useState<any>({});
     const [unviewedSnapshots, setUnviewedSnapshots] = useState<any[]>([]);
     const [chatSearchQuery, setChatSearchQuery] = useState("");
+    const [partnerPresence, setPartnerPresence] = useState<{
+      isOnline: boolean;
+      isInChat: boolean;
+      isTyping: boolean;
+    }>({ isOnline: false, isInChat: false, isTyping: false });
     const notificationSound = useRef<HTMLAudioElement | null>(null);
+
+    useEffect(() => {
+      if (!selectedContact || activeView !== "chat") {
+        setPartnerPresence({ isOnline: false, isInChat: false, isTyping: false });
+        return;
+      }
+
+      const userIds = [session.user.id, selectedContact.id].sort();
+      const channelName = `presence-chat-${userIds[0]}-${userIds[1]}`;
+      const channel = supabase.channel(channelName);
+
+      channel
+        .on('presence', { event: 'sync' }, () => {
+          const state = channel.presenceState();
+          const pState: any = state[selectedContact.id];
+          if (pState && pState.length > 0) {
+            const latest = pState[pState.length - 1];
+            setPartnerPresence({
+              isOnline: true,
+              isInChat: latest.current_chat_id === session.user.id,
+              isTyping: latest.is_typing === true,
+            });
+          } else {
+            setPartnerPresence({ isOnline: false, isInChat: false, isTyping: false });
+          }
+        })
+        .subscribe();
+
+      return () => {
+        channel.unsubscribe();
+      };
+    }, [selectedContact, activeView, session.user.id]);
 
     useEffect(() => {
       notificationSound.current = new Audio("https://assets.mixkit.co/active_storage/sfx/2358/2358-preview.mp3");
@@ -398,8 +435,47 @@ export function UserDashboardView({ session, privateKey }: UserDashboardViewProp
 
                 );
               })}
-            </nav>
-        </motion.aside>
+              </nav>
+
+              {/* Sidebar Footer Indicators */}
+              <div className="mt-auto p-6 border-t border-white/5 bg-black/20">
+                {sidebarOpen ? (
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className={`w-2.5 h-2.5 rounded-full ${partnerPresence.isTyping ? 'bg-blue-500 animate-bounce shadow-[0_0_10px_rgba(59,130,246,0.8)]' : 'bg-white/10'}`} />
+                        <span className={`text-[10px] font-black uppercase tracking-widest ${partnerPresence.isTyping ? 'text-blue-400' : 'text-white/20'}`}>
+                          {partnerPresence.isTyping ? 'Typing Signal...' : 'Idle Node'}
+                        </span>
+                      </div>
+                      {partnerPresence.isTyping && <Sparkles className="w-3 h-3 text-blue-400 animate-pulse" />}
+                    </div>
+                    
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className={`w-2.5 h-2.5 rounded-full ${partnerPresence.isInChat ? 'bg-indigo-500 animate-pulse shadow-[0_0_10px_rgba(99,102,241,0.8)]' : 'bg-white/10'}`} />
+                        <span className={`text-[10px] font-black uppercase tracking-widest ${partnerPresence.isInChat ? 'text-indigo-400' : 'text-white/20'}`}>
+                          {partnerPresence.isInChat ? 'Inside Channel' : 'Outside Link'}
+                        </span>
+                      </div>
+                      {partnerPresence.isInChat && <Activity className="w-3 h-3 text-indigo-400 animate-pulse" />}
+                    </div>
+
+                    {selectedContact && (
+                      <div className="pt-2 border-t border-white/5">
+                        <p className="text-[8px] font-bold text-white/10 uppercase tracking-[0.2em]">Target: {selectedContact.username}</p>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center gap-4">
+                    <div className={`w-3 h-3 rounded-full ${partnerPresence.isTyping ? 'bg-blue-500 animate-bounce' : 'bg-white/10'}`} />
+                    <div className={`w-3 h-3 rounded-full ${partnerPresence.isInChat ? 'bg-indigo-500 animate-pulse' : 'bg-white/10'}`} />
+                  </div>
+                )}
+              </div>
+          </motion.aside>
+
 
         <div className="flex-1 flex flex-col min-w-0 bg-[#030303] relative overflow-hidden h-full">
             <header className="lg:hidden h-20 border-b border-white/5 bg-[#050505]/80 backdrop-blur-3xl flex items-center justify-between px-6 z-30 shrink-0">
@@ -441,26 +517,43 @@ export function UserDashboardView({ session, privateKey }: UserDashboardViewProp
                   <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
                     <div className="bg-white/[0.02] border border-white/5 rounded-[2rem] p-6">
                       <h3 className="text-sm font-black uppercase tracking-[0.3em] mb-6 font-accent">Recent Channels</h3>
-                      <div className="space-y-2">
-                        {recentChats.map(chat => (
-                          <button key={chat.id} onClick={() => { setSelectedContact(chat); setActiveView("chat"); }} className="w-full flex items-center gap-4 p-4 hover:bg-white/5 rounded-2xl transition-all">
-                            <AvatarDisplay profile={chat} className="h-10 w-10" />
-                            <div className="flex-1 text-left"><p className="font-black text-sm uppercase italic font-accent">{chat.username}</p></div>
-                            <ChevronRight className="w-4 h-4 text-white/10" />
-                          </button>
-                        ))}
+                        <div className="space-y-2">
+                          {recentChats.map(chat => (
+                            <button key={chat.id} onClick={() => { setSelectedContact(chat); setActiveView("chat"); }} className="w-full flex items-center gap-4 p-4 hover:bg-white/5 rounded-2xl transition-all group">
+                              <AvatarDisplay profile={chat} className="h-10 w-10" />
+                              <div className="flex-1 text-left">
+                                <p className="font-black text-sm uppercase italic font-accent">{chat.username}</p>
+                                <div className="flex items-center gap-1.5">
+                                  <div className={`w-1 h-1 rounded-full ${onlineUsers.has(chat.id) ? 'bg-emerald-500 shadow-[0_0_5px_rgba(16,185,129,1)]' : 'bg-zinc-600'}`} />
+                                  <span className={`text-[8px] font-bold uppercase tracking-widest ${onlineUsers.has(chat.id) ? 'text-emerald-500' : 'text-zinc-500'}`}>
+                                    {onlineUsers.has(chat.id) ? 'Online' : 'Offline'}
+                                  </span>
+                                </div>
+                              </div>
+                              <ChevronRight className="w-4 h-4 text-white/10 group-hover:text-indigo-400 group-hover:translate-x-1 transition-all" />
+                            </button>
+                          ))}
+                        </div>
                       </div>
-                    </div>
-                    <div className="bg-white/[0.02] border border-white/5 rounded-[2rem] p-6">
-                      <h3 className="text-sm font-black uppercase tracking-[0.3em] mb-6 font-accent">Global Nodes</h3>
-                      <div className="grid grid-cols-2 gap-3">
-                        {profiles.map(p => (
-                          <div key={p.id} onClick={() => { setSelectedContact(p); setActiveView("chat"); }} className="p-4 bg-white/[0.02] border border-white/5 rounded-2xl flex flex-col items-center gap-3 cursor-pointer hover:border-indigo-500/30">
-                            <AvatarDisplay profile={p} className="h-10 w-10" />
-                            <p className="text-[10px] font-black uppercase font-accent">{p.username}</p>
-                          </div>
-                        ))}
-                      </div>
+                      <div className="bg-white/[0.02] border border-white/5 rounded-[2rem] p-6">
+                        <h3 className="text-sm font-black uppercase tracking-[0.3em] mb-6 font-accent">Global Nodes</h3>
+                        <div className="grid grid-cols-2 gap-3">
+                          {profiles.map(p => (
+                            <div key={p.id} onClick={() => { setSelectedContact(p); setActiveView("chat"); }} className="p-4 bg-white/[0.02] border border-white/5 rounded-2xl flex flex-col items-center gap-3 cursor-pointer hover:border-indigo-500/30 group transition-all">
+                              <AvatarDisplay profile={p} className="h-10 w-10 group-hover:scale-110 transition-transform" />
+                              <div className="text-center">
+                                <p className="text-[10px] font-black uppercase font-accent">{p.username}</p>
+                                <div className="flex items-center justify-center gap-1 mt-1">
+                                  <div className={`w-1 h-1 rounded-full ${onlineUsers.has(p.id) ? 'bg-emerald-500' : 'bg-zinc-600'}`} />
+                                  <span className={`text-[7px] font-bold uppercase tracking-widest ${onlineUsers.has(p.id) ? 'text-emerald-500/80' : 'text-zinc-600'}`}>
+                                    {onlineUsers.has(p.id) ? 'Online' : 'Offline'}
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+
                     </div>
                   </div>
                 </motion.div>
